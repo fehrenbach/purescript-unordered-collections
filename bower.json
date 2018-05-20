@@ -1,5 +1,10 @@
 {
     "name": "purescript-unordered-containers",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/fehrenbach/purescript-unordered-containers.git"
+    },
     "ignore": [
         "**/.*",
         "node_modules",
