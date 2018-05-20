@@ -37,13 +37,13 @@ import Data.Int (binary, toStringAs)
 import Data.Int.Bits (complement, shl, zshr, (.&.), (.|.))
 import Data.List (List(..), findIndex, updateAt, (:))
 import Data.List as L
-import Data.Maybe (Maybe(..), fromJust, isJust, maybe)
+import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Monoid (class Monoid)
 import Data.Traversable (class Traversable, sequence, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable, unfoldr)
-import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Partial.Unsafe (unsafeCrashWith)
 
 -- TODO consider unifying Singleton and Collision by either getting
 -- rid of singleton nodes, or linking singleton nodes directly to
@@ -193,18 +193,12 @@ lookupImpl key node hash' s = case node of
 member :: forall k v. Hashable k => k -> HashMap k v -> Boolean
 member k = isJust <<< lookup k
 
--- TODO should probably replace by FFI code to avoid allocations
-unsafeArrayIndex :: forall a. Array a -> Int -> a
-unsafeArrayIndex a i = unsafePartial fromJust (A.index a i)
-
-unsafeInsertAt :: forall a. Int -> a -> Array a -> Array a
-unsafeInsertAt i v a = unsafePartial fromJust (A.insertAt i v a)
-
-unsafeUpdateAt :: forall a. Int -> a -> Array a -> Array a
-unsafeUpdateAt i v a = unsafePartial fromJust (A.updateAt i v a)
-
-unsafeDeleteAt :: forall a. Int -> Array a -> Array a
-unsafeDeleteAt i a = unsafePartial fromJust (A.deleteAt i a)
+-- Modest performance gain from using these over the Data.Array
+-- versions + unsafePartial fromJust
+foreign import unsafeArrayIndex :: forall a. Array a -> Int -> a
+foreign import unsafeInsertAt :: forall a. Int -> a -> Array a -> Array a
+foreign import unsafeUpdateAt :: forall a. Int -> a -> Array a -> Array a
+foreign import unsafeDeleteAt :: forall a. Int -> Array a -> Array a
 
 -- TODO submit PR to Data.Int.Bits
 foreign import popCount :: Int -> Int
@@ -297,9 +291,6 @@ toUnfoldableBy f m = unfoldr go (m : Nil) where
     Collision _ l -> go ((map (\{k, v} -> Singleton 0 k v) l) <> tl)
     Bitmapped _ a -> go (L.fromFoldable a <> tl)
 
--- TODO maybe write a -(co-)By version that generalizes from Tuple to any f :: k -> v -> a
--- TODO maybe both?
-
 delete :: forall k v. Hashable k => k -> HashMap k v -> HashMap k v
 delete k m = deleteImpl k (hash k) 0 m
 
@@ -317,8 +308,10 @@ deleteImpl k hash' s n@(Bitmapped bm a) =
   let bit = 1 `shl` ((hash' `zshr` s) .&. 31)
   in if bm .&. bit == 0 then n -- not found
      else let index = popCount (bm .&. (bit-1))
-              arity = popCount bm -- same as A.length a ??!
+              arity = A.length a
           in case deleteImpl k hash' (s+5) (unsafeArrayIndex a index) of
+            -- TODO this is a bit of a mess. Check Steindorfer & Vinju
+            -- again for possibly better ordering of conditions.
             Bitmapped 0 _ ->
               if arity == 1
               then empty
