@@ -8,7 +8,7 @@
     ],
     "dependencies": {
         "purescript-prelude": "^3.3.0",
-        "purescript-hashable": "/home/stefan/src/purescript-hashable/.git#master"
+        "purescript-hashable": "https://github.com/fehrenbach/purescript-hashable.git#^0.0.1"
     },
     "devDependencies": {
         "purescript-psci-support": "^3.0.0",
