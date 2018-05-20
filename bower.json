@@ -1,0 +1,19 @@
+{
+    "name": "purescript-unordered-containers",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-prelude": "^3.3.0",
+        "purescript-hashable": "/home/stefan/src/purescript-hashable/.git#master"
+    },
+    "devDependencies": {
+        "purescript-psci-support": "^3.0.0",
+        "purescript-maps": "^3.5.0",
+        "purescript-minibench": "^1.0.0",
+        "purescript-quickcheck": "^4.7.0"
+    }
+}
