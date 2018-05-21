@@ -1,4 +1,4 @@
-module Main where
+module Bench.Main where
 
 import Prelude
 
