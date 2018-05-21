@@ -62,11 +62,11 @@ data HashMap k v
 
 instance eqHashMap :: (Eq k, Eq v) => Eq (HashMap k v) where
   eq (Singleton h1 k1 v1) (Singleton h2 k2 v2) = h1 == h2 && k1 == k2 && v1 == v2
+  eq (Bitmapped h1 a1) (Bitmapped h2 a2) = h1 == h2 && a1 == a2
   eq (Collision h1 l1) (Collision h2 l2) =
     h1 == h2
     && L.all (\{k:k1,v:v1} -> isJust (L.find (\{k:k2, v:v2} -> k1 == k2 && v1 == v2) l2)) l1
     && L.all (\{k:k2,v:v2} -> isJust (L.find (\{k:k1, v:v1} -> k1 == k2 && v1 == v2) l1)) l2
-  eq (Bitmapped h1 a1) (Bitmapped h2 a2) = h1 == h2 && a1 == a2
   eq _ _ = false
 
 instance eq1HashMap :: Eq k => Eq1 (HashMap k) where
@@ -80,18 +80,18 @@ instance semigroupHashMap :: Hashable k => Semigroup (HashMap k v) where
 
 instance functorHashMap :: Functor (HashMap k) where
   map f (Singleton h k v) = Singleton h k (f v)
-  map f (Collision h l) = Collision h (map (\{k, v} -> {k, v: f v}) l)
   map f (Bitmapped b a) = Bitmapped b (map (map f) a)
+  map f (Collision h l) = Collision h (map (\{k, v} -> {k, v: f v}) l)
 
 instance functorWithIndexHashMap :: FunctorWithIndex k (HashMap k) where
   mapWithIndex f (Singleton h k v) = Singleton h k (f k v)
-  mapWithIndex f (Collision h l) = Collision h (map (\{k, v} -> {k, v: f k v}) l)
   mapWithIndex f (Bitmapped b a) = Bitmapped b (map (mapWithIndex f) a)
+  mapWithIndex f (Collision h l) = Collision h (map (\{k, v} -> {k, v: f k v}) l)
 
 instance foldableHashMap :: Foldable (HashMap k) where
   foldMap f (Singleton _ _ v) = f v
-  foldMap f (Collision _ l) = foldMap (f <<< _.v) l
   foldMap f (Bitmapped _ a) = foldMap (foldMap f) a
+  foldMap f (Collision _ l) = foldMap (f <<< _.v) l
   -- TODO HashMaps are unordered, so order hardly matters, but we
   -- could be more efficient, probably. Possibly even more efficient
   -- than foldMap, because we don't need the Monoid dictionary
@@ -100,37 +100,37 @@ instance foldableHashMap :: Foldable (HashMap k) where
 
 instance foldableWithIndexHashMap :: FoldableWithIndex k (HashMap k) where
   foldMapWithIndex f (Singleton _ k v) = f k v
-  foldMapWithIndex f (Collision _ l) = foldMap (\t -> f t.k t.v) l
   foldMapWithIndex f (Bitmapped _ a) = foldMap (foldMapWithIndex f) a
+  foldMapWithIndex f (Collision _ l) = foldMap (\t -> f t.k t.v) l
   foldrWithIndex f = foldrWithIndexDefault f
   foldlWithIndex f = foldlWithIndexDefault f
 
 instance traversableHashMap :: Traversable (HashMap k) where
   sequence (Singleton h k v) = pure (Singleton h k) <*> v
+  sequence (Bitmapped bm a) =
+    pure (Bitmapped bm) <*> sequence (map sequence a)
   sequence (Collision h l) =
     pure (Collision h) <*> sequence (map (\{k, v} ->
                                            (pure (\a -> {k, v:a})) <*> v) l)
-  sequence (Bitmapped bm a) =
-    pure (Bitmapped bm) <*> sequence (map sequence a)
 
   traverse f (Singleton h k v) = Singleton h k <$> f v
-  traverse f (Collision h l) =
-    Collision h <$> traverse (\{k, v} -> (\a -> {k, v: a}) <$> f v) l
   traverse f (Bitmapped b a) =
     Bitmapped b <$> traverse (traverse f) a
+  traverse f (Collision h l) =
+    Collision h <$> traverse (\{k, v} -> (\a -> {k, v: a}) <$> f v) l
 
 instance traversableWithIndexHashMap :: TraversableWithIndex k (HashMap k) where
   traverseWithIndex f (Singleton h k v) = Singleton h k <$> f k v
-  traverseWithIndex f (Collision h l) =
-    Collision h <$> traverse (\{k, v} -> (\a -> {k, v: a}) <$> f k v) l
   traverseWithIndex f (Bitmapped b a) =
     Bitmapped b <$> traverse (traverseWithIndex f) a
+  traverseWithIndex f (Collision h l) =
+    Collision h <$> traverse (\{k, v} -> (\a -> {k, v: a}) <$> f k v) l
 
 -- TODO remove/change to non-debugging representation
 instance showHashMap :: (Show k, Show v) => Show (HashMap k v) where
   show (Singleton h k v) = "(Singleton " <> show h <> " " <> show k <> " " <> show v <> ")"
-  show (Collision h l) = "(Collision " <> show h <> " " <> show (map (\ {k,v} -> "(Tuple " <> show k <> " " <> show v <> ")") l) <> ")"
   show (Bitmapped i a) = "(Bitmapped " <> toStringAs binary i <> " " <> show a <> ")"
+  show (Collision h l) = "(Collision " <> show h <> " " <> show (map (\ {k,v} -> "(Tuple " <> show k <> " " <> show v <> ")") l) <> ")"
 
 empty :: forall k v. HashMap k v
 empty = Bitmapped 0 []
@@ -147,6 +147,13 @@ insert k v m = insertImpl m k v (hash k) 0
 
 insertImpl :: forall k v. Hashable k => HashMap k v -> k -> v -> Int -> Int -> HashMap k v
 insertImpl node key value hash' s = case node of
+  Bitmapped 0 _ -> Singleton hash' key value
+  Bitmapped bm a ->
+    let bit = 1 `shl` ((hash' `zshr` s) .&. 31)
+        i = popCount (bm .&. (bit - 1))
+    in if bm .&. bit == 0
+       then Bitmapped (bm .|. bit) (unsafeInsertAt i (Singleton hash' key value) a)
+       else Bitmapped bm (unsafeUpdateAt i (insertImpl (unsafeArrayIndex a i) key value hash' (s+5)) a)
   Singleton h k v ->
     if hash' == h
     then if key == k
@@ -160,29 +167,22 @@ insertImpl node key value hash' s = case node of
       Nothing -> Collision h (A.cons {k: key, v: value} l)
       Just i -> Collision h (unsafeUpdateAt i {k: key, v: value} l)
     else joinImpl s (Singleton hash' key value) node
-  Bitmapped 0 _ -> Singleton hash' key value
-  Bitmapped bm a ->
-    let bit = 1 `shl` ((hash' `zshr` s) .&. 31)
-        i = popCount (bm .&. (bit - 1))
-    in if bm .&. bit == 0
-       then Bitmapped (bm .|. bit) (unsafeInsertAt i (Singleton hash' key value) a)
-       else Bitmapped bm (unsafeUpdateAt i (insertImpl (unsafeArrayIndex a i) key value hash' (s+5)) a)
 
 lookup :: forall k v. Hashable k => k -> HashMap k v -> Maybe v
 lookup k m = lookupImpl k m (hash k) 0
 
 lookupImpl :: forall k v. Hashable k => k -> HashMap k v -> Int -> Int -> Maybe v
 lookupImpl key node hash' s = case node of
-  Singleton h k v -> if h == hash' && k == key then Just v else Nothing
-  Collision h l -> if h == hash'
-                   then _.v <$> L.find (\{k} -> k == key) l
-                   else Nothing
   Bitmapped 0 _ -> Nothing
   Bitmapped bm a ->
     let bit = 1 `shl` ((hash' `zshr` s) .&. 31)
     in if bm .&. bit == 0
        then Nothing
        else lookupImpl key (unsafeArrayIndex a (popCount (bm .&. (bit-1)))) hash' (s+5)
+  Singleton h k v -> if h == hash' && k == key then Just v else Nothing
+  Collision h l -> if h == hash'
+                   then _.v <$> L.find (\{k} -> k == key) l
+                   else Nothing
 
 member :: forall k v. Hashable k => k -> HashMap k v -> Boolean
 member k = isJust <<< lookup k
@@ -282,21 +282,13 @@ toUnfoldableBy f m = unfoldr go (m : Nil) where
     -- We build a singleton node here, which needs a hash. We don't
     -- look at it later, so we just use 0. This is not pretty, but
     -- allows us to get by without a `Hashable k` constraint.
-    Collision _ l -> go ((A.toUnfoldable $ map (\{k, v} -> Singleton 0 k v) l) <> tl)
     Bitmapped _ a -> go (L.fromFoldable a <> tl)
+    Collision _ l -> go ((A.toUnfoldable $ map (\{k, v} -> Singleton 0 k v) l) <> tl)
 
 delete :: forall k v. Hashable k => k -> HashMap k v -> HashMap k v
 delete k m = deleteImpl k (hash k) 0 m
 
 deleteImpl :: forall k v. Hashable k => k -> Int -> Int -> HashMap k v -> HashMap k v
-deleteImpl k hash' s n@(Singleton h k' _) =
-  if h == hash' && k == k'
-  then empty else n
-deleteImpl k hash' s n@(Collision h l) =
-  if h /= hash' then n else case A.filter (\{k:k'} -> k /= k') l of
-    -- Nil -> unsafeCrashWith "Either filter removed more than one entry or a Collision node had less than two entries to begin with. Both of these should be impossible."
-    [{k:k', v}] -> Singleton h k' v
-    rest -> Collision h rest
 deleteImpl k hash' s n@(Bitmapped 0 a) = n
 deleteImpl k hash' s n@(Bitmapped bm a) =
   let bit = 1 `shl` ((hash' `zshr` s) .&. 31)
@@ -321,12 +313,20 @@ deleteImpl k hash' s n@(Bitmapped bm a) =
               then coll
               else Bitmapped bm (unsafeUpdateAt index coll a)
             r -> Bitmapped bm (unsafeUpdateAt index r a)
+deleteImpl k hash' s n@(Singleton h k' _) =
+  if h == hash' && k == k'
+  then empty else n
+deleteImpl k hash' s n@(Collision h l) =
+  if h /= hash' then n else case A.filter (\{k:k'} -> k /= k') l of
+    -- Nil -> unsafeCrashWith "Either filter removed more than one entry or a Collision node had less than two entries to begin with. Both of these should be impossible."
+    [{k:k', v}] -> Singleton h k' v
+    rest -> Collision h rest
 
 -- helper for deleteImpl
 isPrim :: forall k v. HashMap k v -> Boolean
 isPrim (Singleton _ _ _) = true
-isPrim (Collision _ _) = true
 isPrim (Bitmapped _ _) = false
+isPrim (Collision _ _) = true
 
 
 -- | Insert the value, delete a value, or update a value for a key in a map
@@ -352,5 +352,5 @@ union l r = foldl (\m (Tuple k v) -> insert k v m) r (toUnfoldableUnordered l ::
 
 size :: forall k v. HashMap k v -> Int
 size (Singleton _ _ _) = 1
-size (Collision _ l) = A.length l
 size (Bitmapped _ a) = foldl (\s m -> size m + s) 0 a
+size (Collision _ l) = A.length l
