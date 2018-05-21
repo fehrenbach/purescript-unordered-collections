@@ -35,7 +35,7 @@ import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Int (binary, toStringAs)
 import Data.Int.Bits (complement, shl, zshr, (.&.), (.|.))
-import Data.List (List(..), findIndex, updateAt, (:))
+import Data.List (List(..), (:))
 import Data.List as L
 import Data.Maybe (Maybe(..), isJust, maybe)
 import Data.Monoid (class Monoid)
@@ -43,7 +43,6 @@ import Data.Traversable (class Traversable, sequence, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable, unfoldr)
-import Partial.Unsafe (unsafeCrashWith)
 
 -- TODO consider unifying Singleton and Collision by either getting
 -- rid of singleton nodes, or linking singleton nodes directly to
@@ -58,9 +57,7 @@ import Partial.Unsafe (unsafeCrashWith)
 -- | absence of hash collisions, common operations are O(log32 n).
 data HashMap k v
   = Singleton Int k v
-    -- TODO consider changing List to Array here
-    -- O(n) insert (n = collisions), but lower constants for traversals
-  | Collision Int (List {k::k, v::v}) -- Invariant: list has at least 2 elements
+  | Collision Int (Array {k::k, v::v}) -- Invariant: array has at least 2 elements
   | Bitmapped Int (Array (HashMap k v))
 
 instance eqHashMap :: (Eq k, Eq v) => Eq (HashMap k v) where
@@ -154,17 +151,14 @@ insertImpl node key value hash' s = case node of
     if hash' == h
     then if key == k
          then Singleton h k value
-         else Collision h (Cons {k, v} (Cons {k: key, v: value} Nil))
+         else Collision h [{k,v}, {k:key, v: value}]
     else joinImpl s (Singleton hash' key value) node
   Collision h l ->
     if hash' == h
-    then case findIndex (\{k} -> k == key) l of
-      Nothing -> Collision h (Cons {k: key, v: value} l)
-      -- TODO This is not ideal. We traverse to find the index, then
-      -- traverse again to update.
-      Just i -> case updateAt i {k: key, v: value} l of
-        Just l' -> Collision h l'
-        Nothing -> unsafeCrashWith "findIndex returend index that updateAt can't deal with"
+    then case A.findIndex (\{k} -> k == key) l of
+      -- TODO cons or snoc?
+      Nothing -> Collision h (A.cons {k: key, v: value} l)
+      Just i -> Collision h (unsafeUpdateAt i {k: key, v: value} l)
     else joinImpl s (Singleton hash' key value) node
   Bitmapped 0 _ -> Singleton hash' key value
   Bitmapped bm a ->
@@ -288,7 +282,7 @@ toUnfoldableBy f m = unfoldr go (m : Nil) where
     -- We build a singleton node here, which needs a hash. We don't
     -- look at it later, so we just use 0. This is not pretty, but
     -- allows us to get by without a `Hashable k` constraint.
-    Collision _ l -> go ((map (\{k, v} -> Singleton 0 k v) l) <> tl)
+    Collision _ l -> go ((A.toUnfoldable $ map (\{k, v} -> Singleton 0 k v) l) <> tl)
     Bitmapped _ a -> go (L.fromFoldable a <> tl)
 
 delete :: forall k v. Hashable k => k -> HashMap k v -> HashMap k v
@@ -299,9 +293,9 @@ deleteImpl k hash' s n@(Singleton h k' _) =
   if h == hash' && k == k'
   then empty else n
 deleteImpl k hash' s n@(Collision h l) =
-  if h /= hash' then n else case L.filter (\{k:k'} -> k /= k') l of
+  if h /= hash' then n else case A.filter (\{k:k'} -> k /= k') l of
     -- Nil -> unsafeCrashWith "Either filter removed more than one entry or a Collision node had less than two entries to begin with. Both of these should be impossible."
-    (Cons {k:k', v} Nil) -> Singleton h k' v
+    [{k:k', v}] -> Singleton h k' v
     rest -> Collision h rest
 deleteImpl k hash' s n@(Bitmapped 0 a) = n
 deleteImpl k hash' s n@(Bitmapped bm a) =
@@ -358,5 +352,5 @@ union l r = foldl (\m (Tuple k v) -> insert k v m) r (toUnfoldableUnordered l ::
 
 size :: forall k v. HashMap k v -> Int
 size (Singleton _ _ _) = 1
-size (Collision _ l) = L.length l
+size (Collision _ l) = A.length l
 size (Bitmapped _ a) = foldl (\s m -> size m + s) 0 a
