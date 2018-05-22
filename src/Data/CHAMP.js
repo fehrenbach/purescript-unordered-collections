@@ -73,7 +73,7 @@ function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
 }
 
 function overwriteTwoElements(a, index, v1, v2) {
-    var res = a.slice(0);
+    var res = a.slice();
     res[index] = v1;
     res[index+1] = v2;
     return res;
