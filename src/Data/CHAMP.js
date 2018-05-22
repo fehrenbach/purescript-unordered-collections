@@ -40,7 +40,7 @@ function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
         return Nothing;
     }
     if ((this.nodemap & bit) !== 0) {
-        return Just(this.getNode(index(this.nodemap, bit)).lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5));
+        return this.getNode(index(this.nodemap, bit)).lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5);
     }
     return Nothing;
 }
@@ -80,22 +80,18 @@ function insert(keyEquals, key, keyHash, value, shift) {
         if (keyEquals(this.getKey(i))(key)) {
             // TODO remove splice
             var newContent = this.content.slice();
-            // newContent[i * 2] = key;
-            // newContent[i * 2 + 1] = value;
             newContent.splice(i * 2, 2, key, value);
             return new Node(this.datamap, this.nodemap, this.keyhashes, newContent);
         } else {
             var newNode = binaryNode(this.getKey(i), this.keyhashes[i], this.getValue(i), key, keyHash, value, shift + 5);
             var newLength = this.content.length - 1;
             /*const*/ newContent = new Array(newLength);
-            var newNodeIndex = newLength - i - 1;
+            var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
             var j = 0;
             for (; j < i * 2; j++) newContent[j] = this.content[j];
-            j = j+2;
-            for (; j < newNodeIndex; j++) newContent[j] = this.content[j];
-            newContent[newNodeIndex] = newNode;
-            j = newNodeIndex + 1;
-            for (; j < newNodeIndex; j++) newContent[j] = this.content[j+1];
+            for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
+            newContent[j++] = newNode;
+            for (; j < newLength; j++) newContent[j] = this.content[j+1];
             // TODO remove splice
             var newKeyhashes = this.keyhashes.slice();
             newKeyhashes.splice(i, 1);
@@ -103,14 +99,17 @@ function insert(keyEquals, key, keyHash, value, shift) {
         }
     }
     if ((this.nodemap & bit) !== 0) {
-        /*const*/ newNode = this.getNode(index(this.nodemap, bit)).insert(keyEquals, key, keyHash, value, shift);
+        var nodeIndex = index(this.nodemap, bit);
+        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, key, keyHash, value, shift + 5);
         /*const*/ newContent = this.content.slice();
-        newContent[newContent.length - i - 1] = newNode;
+        newContent[newContent.length - nodeIndex - 1] = newNode;
         return new Node(this.datamap, this.nodemap, this.keyhashes, newContent);
     }
-    /*const*/newContent = this.content.slice();
-    // TODO apparently splice is slow, replace by something faster
-    newContent.splice(i * 2, 0, key, value);
+    /*const*/ newContent = new Array(this.content.length + 2);
+    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
+    newContent[k++] = key;
+    newContent[k++] = value;
+    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
     /*const*/ newKeyhashes = this.keyhashes.slice();
     newKeyhashes.splice(i, 0, keyHash);
     return new Node(this.datamap | bit, this.nodemap, newKeyhashes, newContent);
@@ -128,13 +127,63 @@ function i(k, v, m) {
 
 var empty = new Node(0,0,[],[]);
 
+exports.empty = empty;
+exports.lookupPurs = function (Nothing) {
+    return function (Just) {
+        return function (keyEquals) {
+            return function (key) {
+                return function (keyHash) {
+                    return function (m) {
+                        return m.lookup(Nothing, Just, keyEquals, key, keyHash, 0);
+                    };
+                };
+            };
+        };
+    };
+};
+exports.insertPurs = function (keyEquals) {
+    return function (key) {
+        return function (keyHash) {
+            return function (value) {
+                return function (m) {
+                    return m.insert(keyEquals, key, keyHash, value, 0);
+                };
+            };
+        };
+    };
+};
+
+// l(-868019,i(-868019,16574,i(-204499,-358325,i(-676116,21098,i(641360,773947,empty)))))
+// l(-868019,i(641360,773947,i(-676116,21098,i(-204499,-358325,i(-868019,16574,empty)))))
+// l(-868019,i(-868019,16574,i(641360,773947,i(-676116,21098,i(-204499,-358325,empty)))))
+
+
+// console.log(i( -8766, 339042, 
+//      i( 210080, -617132, 
+//         i( 362834, -32859, 
+//            i( -457558, 1714, 
+//               i( -222372, 541251, 
+//                  i( 23922, -787932,
+//                     empty)))))))
+
+// console.log(
+// i(-695086, -811390,
+//   i( -8766, 339042, 
+//      i( 210080, -617132, 
+//         i( 362834, -32859, 
+//            i( -457558, 1714, 
+//               i( -222372, 541251, 
+//                  i( 23922, -787932,
+//                     empty))))))))
+  
+
 // console.log("empty content", empty.content)
 // console.log("0 b content", i(0,'b', empty).content)
 // console.log("0 b 8 a content", i(8,'a', i(0,'b', empty)).content)
 
 // console.log(i(8,'a',i(0,'b',empty)))
-console.log(l(8,i(8,'a',i(0,'b',empty))))
+// console.log(l(8,i(8,'a',i(0,'b',empty))))
 
-console.log(l(0,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
-console.log(l(8,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
-console.log(l(32,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
+// console.log(l(0,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
+// console.log(l(8,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
+// console.log(l(32,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))

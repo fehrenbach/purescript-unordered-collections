@@ -1,4 +1,4 @@
-.PHONY: compile bench test
+.PHONY: compile bench bench-trace test
 
 SOURCES = $(shell find src/)
 BENCH_SOURCES = $(shell find bench/)
@@ -13,10 +13,13 @@ output/Bench.Main/index.js: $(SOURCES) $(BENCH_SOURCES) $(BOWER_SOURCES)
 bench: output/Bench.Main/index.js
 	node -e 'require("./output/Bench.Main/index.js").main()'
 
+bench-trace: output/Bench.Main/index.js
+	node --trace-opt --trace-deopt -e  'require("./output/Bench.Main/index.js").main()'
+
 compile: $(SOURCES) $(BOWER_SOURCES)
 	purs compile 'src/**/*.purs' 'bower_components/*/src/**/*.purs'
 
-output/Test.Main/index.js: $(SOURCES) $(TEST_SOURCES) $(BOWER_SOURCES)
+output/Test.Main/index.js: compile $(SOURCES) $(TEST_SOURCES) $(BOWER_SOURCES)
 	purs compile 'test/**/*.purs' 'src/**/*.purs' 'bower_components/*/src/**/*.purs'
 
 test: output/Test.Main/index.js

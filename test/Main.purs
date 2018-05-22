@@ -7,6 +7,7 @@ import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
+import Data.CHAMP as CHAMP
 import Data.Foldable (foldMap)
 import Data.HashMap as HashMap
 import Data.Hashable (class Hashable)
@@ -60,6 +61,10 @@ prop = go Map.empty HashMap.empty
 arbitraryMap :: forall k v. Hashable k => Array (Tuple k v) -> HashMap.HashMap k v
 arbitraryMap = HashMap.fromFoldable
 
+arbitraryCHAMP :: forall k v. Hashable k => Array (Tuple k v) -> CHAMP.CHAMP k v
+arbitraryCHAMP = CHAMP.fromFoldable
+
+
 nowGood :: forall a e. Eq a => a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | e) Unit
 nowGood a b = if a == b then log "Fixed \\o/" else throw "still broken"
 
@@ -77,6 +82,11 @@ main = do
   quickCheck $ \(k :: Int) (v :: Int) a ->
     HashMap.lookup k (HashMap.insert k v (arbitraryMap a)) == Just v
     <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show (arbitraryMap a))
+
+  log "CHAMP Insert and lookup"
+  quickCheck $ \(k :: Int) (v :: Int) a ->
+    CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
+    <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show a <> ", r: " <> show (CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a))))
 
   log "toUnfoldableUnordered"
   quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
