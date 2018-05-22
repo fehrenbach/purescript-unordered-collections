@@ -72,20 +72,24 @@ function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
     return new Node(0, 1 << b1, [], [node]);
 }
 
+function overwriteTwoElements(a, index, v1, v2) {
+    var res = a.slice(0);
+    res[index] = v1;
+    res[index+1] = v2;
+    return res;
+}
+
 function insert(keyEquals, key, keyHash, value, shift) {
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
     if ((this.datamap & bit) !== 0) {
         // TODO compare hashes first?!
         if (keyEquals(this.getKey(i))(key)) {
-            // TODO remove splice
-            var newContent = this.content.slice();
-            newContent.splice(i * 2, 2, key, value);
-            return new Node(this.datamap, this.nodemap, this.keyhashes, newContent);
+            return new Node(this.datamap, this.nodemap, this.keyhashes, overwriteTwoElements(this.content, i*2, key, value));
         } else {
             var newNode = binaryNode(this.getKey(i), this.keyhashes[i], this.getValue(i), key, keyHash, value, shift + 5);
             var newLength = this.content.length - 1;
-            /*const*/ newContent = new Array(newLength);
+            var newContent = new Array(newLength);
             var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
             var j = 0;
             for (; j < i * 2; j++) newContent[j] = this.content[j];
@@ -111,6 +115,7 @@ function insert(keyEquals, key, keyHash, value, shift) {
     newContent[k++] = value;
     for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
     /*const*/ newKeyhashes = this.keyhashes.slice();
+    // TODO remove splice
     newKeyhashes.splice(i, 0, keyHash);
     return new Node(this.datamap | bit, this.nodemap, newKeyhashes, newContent);
 }
