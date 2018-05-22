@@ -23,3 +23,8 @@ insert = insertPurs (==) hash
 
 fromFoldable :: forall f k v. Foldable f => Hashable k => f (Tuple k v) -> CHAMP k v
 fromFoldable = foldr (\(Tuple k v) -> insert k v) empty
+
+foreign import toArrayBy :: forall a k v. (k -> v -> a) -> CHAMP k v -> Array a
+
+keys = toArrayBy const
+values = toArrayBy (flip const)

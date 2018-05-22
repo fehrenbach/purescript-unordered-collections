@@ -98,6 +98,13 @@ main = do
         m = arbitraryMap nubA
     in A.sort (HashMap.toUnfoldableUnordered m) == A.sort nubA
 
+  log "CHAMP toArrayBy"
+  quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
+    let nubA = A.nubBy (\x y -> fst x == fst y) a
+        m = arbitraryCHAMP nubA
+    in A.sort (CHAMP.toArrayBy Tuple m) == A.sort nubA
+       <?> ("expected: " <> show (A.sort nubA) <> "\ngot:     " <> show (A.sort (CHAMP.toArrayBy Tuple m)))
+
   log "delete removes"
   quickCheck $ \ k v (a :: Array (Tuple CollidingInt String)) ->
     Nothing == (HashMap.lookup k $ HashMap.delete k $ HashMap.insert k v $ arbitraryMap a)

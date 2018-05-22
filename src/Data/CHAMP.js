@@ -18,6 +18,15 @@ Node.prototype.getNode = function (index) {
 }
 Node.prototype.lookup = lookup;
 Node.prototype.insert = insert;
+Node.prototype.toArrayBy = function (f, res) {
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        var k = this.content[i++];
+        var v = this.content[i++];
+        res.push(f(k)(v));
+    }
+    for (; i < this.content.length; i++)
+        this.content[i].toArrayBy(f, res);
+}
 
 /** @constructor */
 function Collision(keys, values) {
@@ -38,6 +47,11 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
             break;
     return new Collision(this.keys.slice()[i] = key, this.values.slice()[i] = value);
 };
+
+Collision.prototype.toArrayBy = function (f, res) {
+    for (var i = 0; i < this.keys.length; i++)
+        res.push(f(this.keys[i])(this.values[i]));
+}
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -70,24 +84,14 @@ function popCount (n) {
 }
 
 function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
-    if (s >= 32) {
-        return new Collision([k1, k2], [v1, v2]);
-    }
+    if (s >= 32) return new Collision([k1, k2], [v1, v2]);
 
     var b1 = (kh1 >>> s) & 31;
     var b2 = (kh2 >>> s) & 31;
     
-    if (b1 !== b2) {
-        var datamap = (1 << b1) | (1 << b2);
-        if ((b1 >>> 0) < (b2 >>> 0)) {
-            return new Node(datamap, 0, [k1, v1, k2, v2]);
-        } else {
-            return new Node(datamap, 0, [k2, v2, k1, v1]);
-        }
-    }
+    if (b1 !== b2) return new Node((1 << b1) | (1 << b2), 0, (b1 >>> 0) < (b2 >>> 0) ? [k1, v1, k2, v2] : [k2, v2, k1, v1]);
 
-    var node = binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5);
-    return new Node(0, 1 << b1, [node]);
+    return new Node(0, 1 << b1, [binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5)]);
 }
 
 function overwriteTwoElements(a, index, v1, v2) {
@@ -168,6 +172,14 @@ exports.insertPurs = function (keyEquals) {
                 };
             };
         };
+    };
+};
+
+exports.toArrayBy = function (f) {
+    return function (m) {
+        var res = [];
+        m.toArrayBy(f, res);
+        return res;
     };
 };
 // l(-868019,i(-868019,16574,i(-204499,-358325,i(-676116,21098,i(641360,773947,empty)))))
