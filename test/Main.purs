@@ -41,7 +41,7 @@ instance arbitraryCollidingInt :: Arbitrary CollidingInt where
   arbitrary = CollidingInt <$> arbitrary
 
 instance collidingIntHashable :: Hashable CollidingInt where
-  hash (CollidingInt i) = i `mod` 100000
+  hash (CollidingInt i) = i `mod` 100
 
 prop ::
   forall k v.
@@ -87,6 +87,10 @@ main = do
   quickCheck $ \(k :: Int) (v :: Int) a ->
     CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
     <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show a <> ", r: " <> show (CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a))))
+
+  log "CHAMP insert colliding and lookup"
+  quickCheck $ \(k :: CollidingInt) (v :: Int) a ->
+    CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
 
   log "toUnfoldableUnordered"
   quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->

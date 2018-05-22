@@ -21,6 +21,26 @@ Node.prototype.getNode = function (index) {
 Node.prototype.lookup = lookup;
 Node.prototype.insert = insert;
 
+/** @constructor */
+function Collision(keys, values) {
+    this.keys = keys;
+    this.values = values;
+}
+
+Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, key, keyHash, shift) {
+    for (var i = 0; i < this.keys.length; i++)
+        if (keyEquals(key)(this.keys[i]))
+            return Just(this.values[i]);
+};
+
+Collision.prototype.insert = function collisionInsert(keyEquals, key, keyHash, value, shift) {
+    var i = 0;
+    for (; i < this.keys.length; i++)
+        if (keyEquals(key)(this.keys[i]))
+            break;
+    return new Collision(this.keys.slice()[i] = key, this.values.slice()[i] = value);
+};
+
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
 }
@@ -53,7 +73,7 @@ function popCount (n) {
 
 function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
     if (s >= 32) {
-        throw "TODO collision"
+        return new Collision([k1, k2], [v1, v2]);
     }
 
     var b1 = (kh1 >>> s) & 31;
