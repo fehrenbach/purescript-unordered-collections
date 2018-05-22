@@ -1,11 +1,9 @@
 "use strict";
 
 /** @constructor */
-function Node(datamap, nodemap, keyhashes, content) {
+function Node(datamap, nodemap, content) {
     this.datamap = datamap;
     this.nodemap = nodemap;
-    // TODO try storing inline with content? [k1, h1, v1, k2, h2, v2, ..., n1, ...]
-    this.keyhashes = keyhashes;
     this.content = content;
 }
 
@@ -33,7 +31,7 @@ Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, 
             return Just(this.values[i]);
 };
 
-Collision.prototype.insert = function collisionInsert(keyEquals, key, keyHash, value, shift) {
+Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var i = 0;
     for (; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
@@ -82,14 +80,14 @@ function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
     if (b1 !== b2) {
         var datamap = (1 << b1) | (1 << b2);
         if ((b1 >>> 0) < (b2 >>> 0)) {
-            return new Node(datamap, 0, [kh1, kh2], [k1, v1, k2, v2]);
+            return new Node(datamap, 0, [k1, v1, k2, v2]);
         } else {
-            return new Node(datamap, 0, [kh2, kh1], [k2, v2, k1, v1]);
+            return new Node(datamap, 0, [k2, v2, k1, v1]);
         }
     }
 
     var node = binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5);
-    return new Node(0, 1 << b1, [], [node]);
+    return new Node(0, 1 << b1, [node]);
 }
 
 function overwriteTwoElements(a, index, v1, v2) {
@@ -99,15 +97,14 @@ function overwriteTwoElements(a, index, v1, v2) {
     return res;
 }
 
-function insert(keyEquals, key, keyHash, value, shift) {
+function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
     if ((this.datamap & bit) !== 0) {
-        // TODO compare hashes first?!
         if (keyEquals(this.getKey(i))(key)) {
-            return new Node(this.datamap, this.nodemap, this.keyhashes, overwriteTwoElements(this.content, i*2, key, value));
+            return new Node(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
         } else {
-            var newNode = binaryNode(this.getKey(i), this.keyhashes[i], this.getValue(i), key, keyHash, value, shift + 5);
+            var newNode = binaryNode(this.getKey(i), hashFunction(this.getKey(i)), this.getValue(i), key, keyHash, value, shift + 5);
             var newLength = this.content.length - 1;
             var newContent = new Array(newLength);
             var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
@@ -116,28 +113,22 @@ function insert(keyEquals, key, keyHash, value, shift) {
             for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
             newContent[j++] = newNode;
             for (; j < newLength; j++) newContent[j] = this.content[j+1];
-            // TODO remove splice
-            var newKeyhashes = this.keyhashes.slice();
-            newKeyhashes.splice(i, 1);
-            return new Node(this.datamap ^ bit, this.nodemap | bit, newKeyhashes, newContent);
+            return new Node(this.datamap ^ bit, this.nodemap | bit, newContent);
         }
     }
     if ((this.nodemap & bit) !== 0) {
         var nodeIndex = index(this.nodemap, bit);
-        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, key, keyHash, value, shift + 5);
+        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
         /*const*/ newContent = this.content.slice();
         newContent[newContent.length - nodeIndex - 1] = newNode;
-        return new Node(this.datamap, this.nodemap, this.keyhashes, newContent);
+        return new Node(this.datamap, this.nodemap, newContent);
     }
     /*const*/ newContent = new Array(this.content.length + 2);
     for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
     newContent[k++] = key;
     newContent[k++] = value;
     for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
-    /*const*/ newKeyhashes = this.keyhashes.slice();
-    // TODO remove splice
-    newKeyhashes.splice(i, 0, keyHash);
-    return new Node(this.datamap | bit, this.nodemap, newKeyhashes, newContent);
+    return new Node(this.datamap | bit, this.nodemap, newContent);
 }
 
 function l(k, m) {
@@ -147,6 +138,7 @@ function l(k, m) {
 
 function i(k, v, m) {
     return m.insert(function(a) { return function (b) { return a == b; } },
+                    function(a) { return a; },
                     k, k, v, 0);
 }
 
@@ -166,18 +158,18 @@ exports.lookupPurs = function (Nothing) {
         };
     };
 };
+// (k -> k -> Boolean) -> (k -> Int) -> k -> v -> CHAMP k v -> CHAMP k v
 exports.insertPurs = function (keyEquals) {
-    return function (key) {
-        return function (keyHash) {
+    return function (hashFunction) {
+        return function (key) {
             return function (value) {
                 return function (m) {
-                    return m.insert(keyEquals, key, keyHash, value, 0);
+                    return m.insert(keyEquals, hashFunction, key, hashFunction(key), value, 0);
                 };
             };
         };
     };
 };
-
 // l(-868019,i(-868019,16574,i(-204499,-358325,i(-676116,21098,i(641360,773947,empty)))))
 // l(-868019,i(641360,773947,i(-676116,21098,i(-204499,-358325,i(-868019,16574,empty)))))
 // l(-868019,i(-868019,16574,i(641360,773947,i(-676116,21098,i(-204499,-358325,empty)))))
