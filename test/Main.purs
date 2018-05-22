@@ -84,13 +84,16 @@ main = do
     <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show (arbitraryMap a))
 
   log "CHAMP Insert and lookup"
-  quickCheck $ \(k :: Int) (v :: Int) a ->
+  quickCheck' 10000 $ \(k :: Int) (v :: Int) a ->
     CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
     <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show a <> ", r: " <> show (CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a))))
 
   log "CHAMP insert colliding and lookup"
-  quickCheck $ \(k :: CollidingInt) (v :: Int) a ->
+  quickCheck' 10000 $ \(k :: CollidingInt) (v :: Int) a ->
     CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
+    <?> ("k: " <> show k <> ",\nv: " <> show v <>
+         "\nm: " <> show (CHAMP.toArrayBy Tuple (arbitraryCHAMP a)) <>
+         "\ni: " <> show (CHAMP.toArrayBy Tuple (CHAMP.insert k v (arbitraryCHAMP a))))
 
   log "toUnfoldableUnordered"
   quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
@@ -99,7 +102,7 @@ main = do
     in A.sort (HashMap.toUnfoldableUnordered m) == A.sort nubA
 
   log "CHAMP toArrayBy"
-  quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
+  quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
     let nubA = A.nubBy (\x y -> fst x == fst y) a
         m = arbitraryCHAMP nubA
     in A.sort (CHAMP.toArrayBy Tuple m) == A.sort nubA
@@ -175,3 +178,19 @@ t249 = let k = 855538
            a = [(Tuple 359452 false),(Tuple 903388 false)]
            m = arbitraryMap a in
        HashMap.delete k (HashMap.insert k v m) == m
+
+{-
+
+  "CHAMP insert colliding and lookup"
+
+k: -713082,
+v: -452984
+m: [(Tuple 247701 751946),(Tuple 109267 3001),(Tuple 216304 663703),(Tuple -986658 982107),(Tuple -728020 644515),(Tuple 307427 433841),(Tuple 734361 269785),(Tuple -858882 -878371),(Tuple -13482 -287465)]
+i: [(Tuple 247701 751946),(Tuple 109267 3001),(Tuple 216304 663703),(Tuple -986658 982107),(Tuple -728020 644515),(Tuple 307427 433841),(Tuple 734361 269785)]
+
+k: 834588,
+v: 923037
+m: [(Tuple 627567 -347288),(Tuple -197621 -403264),(Tuple 703088 -899609),(Tuple 561788 223074)]
+i: [(Tuple 627567 -347288),(Tuple -197621 -403264)]
+
+-}

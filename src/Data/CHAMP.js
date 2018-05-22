@@ -38,6 +38,7 @@ Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, 
     for (var i = 0; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
             return Just(this.values[i]);
+    return Nothing;
 };
 
 Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, key, keyHash, value, shift) {
