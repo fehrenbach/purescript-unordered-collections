@@ -31,3 +31,8 @@ keys = toArrayBy const
 
 values :: forall k v. CHAMP k v -> Array v
 values = toArrayBy (\_ v -> v)
+
+foreign import deletePurs :: forall k v. (k -> k -> Boolean) -> k -> Int -> CHAMP k v -> CHAMP k v
+
+delete :: forall k v. Hashable k => k -> CHAMP k v -> CHAMP k v
+delete k = deletePurs (==) k (hash k)

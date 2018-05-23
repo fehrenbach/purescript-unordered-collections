@@ -113,6 +113,10 @@ main = do
   quickCheck $ \ k v (a :: Array (Tuple CollidingInt String)) ->
     Nothing == (HashMap.lookup k $ HashMap.delete k $ HashMap.insert k v $ arbitraryMap a)
 
+  log "CHAMP delete removes"
+  quickCheck $ \ k v (a :: Array (Tuple CollidingInt String)) ->
+    Nothing == (CHAMP.lookup k $ CHAMP.delete k $ CHAMP.insert k v $ arbitraryCHAMP a)
+
   log "delete idempotent"
   quickCheck $ \ k (a :: Array (Tuple CollidingInt String)) ->
     let m = arbitraryMap a in

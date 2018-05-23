@@ -18,6 +18,7 @@ Node.prototype.getNode = function (index) {
 }
 Node.prototype.lookup = lookup;
 Node.prototype.insert = insert;
+Node.prototype.delet = delet;
 Node.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < popCount(this.datamap) * 2;) {
         var k = this.content[i++];
@@ -49,6 +50,11 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
     return new Collision(copyAndOverwriteOrExtend1(this.keys, i, key),
                          copyAndOverwriteOrExtend1(this.values, i, value));
 };
+
+Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, shift) {
+    throw "TODO collisionDelete"
+}
+
 
 Collision.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < this.keys.length; i++)
@@ -103,6 +109,22 @@ function overwriteTwoElements(a, index, v1, v2) {
     return res;
 }
 
+// TODO benchmark some alternative implementations (manual copy, slice
+// left + copy?, slice both + concat?, ...)
+function remove2(a, index) {
+    var res = a.slice();
+    res.splice(index, 2);
+    return res;
+}
+
+// I think this is always called with a node index? Therefore, the
+// left will often be larger than the right. Does that help?
+function remove1(a, index) {
+    var res = a.slice();
+    res.splice(index, 1);
+    return res;
+}
+
 // Make a copy while overwriting the element at index, or adding one element if index == a.length
 function copyAndOverwriteOrExtend1(a, index, v) {
     var res = a.slice();
@@ -144,6 +166,30 @@ function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     return new Node(this.datamap | bit, this.nodemap, newContent);
 }
 
+function delet(keyEquals, key, keyHash, shift) {
+    var bit = mask(keyHash, shift);
+    if ((this.datamap & bit) !== 0) {
+        var dataIndex = index(this.datamap, bit);
+        if (keyEquals(this.getKey(i))(key)) {
+            var newDatamap = this.datamap ^ dataIndex;
+            if (newDatamap === 0 && this.nodemap === 0)
+                return empty;
+            return new Node(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
+        }
+        return this;
+    }
+    if ((this.nodemap & bit) !== 0) {
+        var nodeIndex = index(this.nodemap,bit);
+        var recRes = this.getNode(nodeIndex).delet(keyEquals, key, keyHash, shift + 5);
+        var nodemapWithout = this.nodemap ^ nodeIndex;
+        throw "TODO"
+        // if (popCount(nodemapWithout) == 0) {
+        //     // 
+        // }
+        // return new Node(this.datamap, this.nodemap ^ nodeIndex, remove1(this.content, this.content.length - nodeIndex - 1));
+    }
+}
+
 function l(k, m) {
     return m.lookup(null, function (a) { return a; }, function(a) { return function (b) { return a == b; } },
                     k, k, 0);
@@ -179,6 +225,16 @@ exports.insertPurs = function (keyEquals) {
                 return function (m) {
                     return m.insert(keyEquals, hashFunction, key, hashFunction(key), value, 0);
                 };
+            };
+        };
+    };
+};
+
+exports.deletePurs = function (keyEquals) {
+    return function (key) {
+        return function (keyHash) {
+            return function (m) {
+                return m.delet(keyEquals, key, keyHash, 0);
             };
         };
     };
