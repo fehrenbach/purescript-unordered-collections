@@ -93,7 +93,8 @@ main = do
     CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a)) == Just v
     <?> ("k: " <> show k <> ",\nv: " <> show v <>
          "\nm: " <> show (CHAMP.toArrayBy Tuple (arbitraryCHAMP a)) <>
-         "\ni: " <> show (CHAMP.toArrayBy Tuple (CHAMP.insert k v (arbitraryCHAMP a))))
+         "\ni: " <> show (CHAMP.toArrayBy Tuple (CHAMP.insert k v (arbitraryCHAMP a))) <>
+         "\nl: " <> show (CHAMP.lookup k (CHAMP.insert k v (arbitraryCHAMP a))))
 
   log "toUnfoldableUnordered"
   quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->

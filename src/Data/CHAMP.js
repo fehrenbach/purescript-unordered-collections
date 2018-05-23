@@ -46,7 +46,8 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
     for (; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
             break;
-    return new Collision(this.keys.slice()[i] = key, this.values.slice()[i] = value);
+    return new Collision(copyAndOverwriteOrExtend1(this.keys, i, key),
+                         copyAndOverwriteOrExtend1(this.values, i, value));
 };
 
 Collision.prototype.toArrayBy = function (f, res) {
@@ -102,6 +103,13 @@ function overwriteTwoElements(a, index, v1, v2) {
     return res;
 }
 
+// Make a copy while overwriting the element at index, or adding one element if index == a.length
+function copyAndOverwriteOrExtend1(a, index, v) {
+    var res = a.slice();
+    res[index] = v;
+    return res;
+}
+
 function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
@@ -143,7 +151,7 @@ function l(k, m) {
 
 function i(k, v, m) {
     return m.insert(function(a) { return function (b) { return a == b; } },
-                    function(a) { return a; },
+                    function(a) { return a % 100; },
                     k, k, v, 0);
 }
 
@@ -163,7 +171,7 @@ exports.lookupPurs = function (Nothing) {
         };
     };
 };
-// (k -> k -> Boolean) -> (k -> Int) -> k -> v -> CHAMP k v -> CHAMP k v
+
 exports.insertPurs = function (keyEquals) {
     return function (hashFunction) {
         return function (key) {
@@ -183,37 +191,3 @@ exports.toArrayBy = function (f) {
         return res;
     };
 };
-// l(-868019,i(-868019,16574,i(-204499,-358325,i(-676116,21098,i(641360,773947,empty)))))
-// l(-868019,i(641360,773947,i(-676116,21098,i(-204499,-358325,i(-868019,16574,empty)))))
-// l(-868019,i(-868019,16574,i(641360,773947,i(-676116,21098,i(-204499,-358325,empty)))))
-
-
-// console.log(i( -8766, 339042, 
-//      i( 210080, -617132, 
-//         i( 362834, -32859, 
-//            i( -457558, 1714, 
-//               i( -222372, 541251, 
-//                  i( 23922, -787932,
-//                     empty)))))))
-
-// console.log(
-// i(-695086, -811390,
-//   i( -8766, 339042, 
-//      i( 210080, -617132, 
-//         i( 362834, -32859, 
-//            i( -457558, 1714, 
-//               i( -222372, 541251, 
-//                  i( 23922, -787932,
-//                     empty))))))))
-  
-
-// console.log("empty content", empty.content)
-// console.log("0 b content", i(0,'b', empty).content)
-// console.log("0 b 8 a content", i(8,'a', i(0,'b', empty)).content)
-
-// console.log(i(8,'a',i(0,'b',empty)))
-// console.log(l(8,i(8,'a',i(0,'b',empty))))
-
-// console.log(l(0,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
-// console.log(l(8,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
-// console.log(l(32,i(8, 'eight',i(32,'thirtytwo',i(0,'z',empty)))))
