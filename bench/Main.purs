@@ -148,3 +148,15 @@ main = do
 
   log "CH.values (Array)"
   bench \_ -> CHAMP.values chSi100 :: Array Int
+
+  -- log "OM.values (Array)"
+  -- bench \_ -> OM.values omSi100 :: List Int
+
+  log "HM.keys (Array)"
+  bench \_ -> HM.keys hmSi100 :: Array String
+
+  log "CH.keys (Array)"
+  bench \_ -> CHAMP.keys chSi100 :: Array String
+
+  -- log "OM.keys (Array)"
+  -- bench \_ -> OM.keys omSi100 :: Array String

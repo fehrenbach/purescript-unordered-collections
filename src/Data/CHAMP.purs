@@ -26,5 +26,8 @@ fromFoldable = foldr (\(Tuple k v) -> insert k v) empty
 
 foreign import toArrayBy :: forall a k v. (k -> v -> a) -> CHAMP k v -> Array a
 
+keys :: forall k v. CHAMP k v -> Array k
 keys = toArrayBy const
-values = toArrayBy (flip const)
+
+values :: forall k v. CHAMP k v -> Array v
+values = toArrayBy (\_ v -> v)
