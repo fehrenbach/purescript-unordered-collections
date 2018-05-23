@@ -28,6 +28,9 @@ Node.prototype.toArrayBy = function (f, res) {
     for (; i < this.content.length; i++)
         this.content[i].toArrayBy(f, res);
 }
+Node.prototype.isSingleton = function () {
+    return this.nodemap === 0 && this.content.length === 2;
+}
 
 /** @constructor */
 function Collision(keys, values) {
@@ -52,7 +55,14 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
 };
 
 Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, shift) {
-    throw "TODO collisionDelete"
+    var i = 0;
+    for (; i < this.keys.length; i++)
+        if (keyEquals(key)(this.keys[i]))
+            break;
+    if (i === this.keys.length) return this;
+    if (this.keys.length === 2)
+        return new Node(mask(keyHash, shift), 0, [this.keys[1 - i]], [this.values[1 - i]]);
+    return new Collision(remove1(this.keys, i), remove1(this.values, i));
 }
 
 
@@ -60,6 +70,8 @@ Collision.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < this.keys.length; i++)
         res.push(f(this.keys[i])(this.values[i]));
 }
+
+Collision.prototype.isSingleton = function () { return false; }
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -74,7 +86,7 @@ function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
     if ((this.datamap & bit) !== 0) {
         var i = index(this.datamap, bit);
         // TODO compare hashes first?
-        if (keyEquals(key, this.getKey(i))) {
+        if (keyEquals(key)(this.getKey(i))) {
             return Just(this.getValue(i));
         }
         return Nothing;
@@ -132,6 +144,17 @@ function copyAndOverwriteOrExtend1(a, index, v) {
     return res;
 }
 
+var copyAndOverwrite = copyAndOverwriteOrExtend1;
+
+function remove2insert1(a, removeIndex, insertIndex, v1) {
+    var res = new Array(a.length - 1);
+    for (var i = 0; i < removeIndex; i++) res[i] = a[i];
+    for (; i < insertIndex; i++) res[i] = a[i+2];
+    res[i++] = v1;
+    for (; i < res.length; i++) res[i] = a[i+1];
+    return res;
+}
+
 function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
@@ -170,7 +193,7 @@ function delet(keyEquals, key, keyHash, shift) {
     var bit = mask(keyHash, shift);
     if ((this.datamap & bit) !== 0) {
         var dataIndex = index(this.datamap, bit);
-        if (keyEquals(this.getKey(i))(key)) {
+        if (keyEquals(this.getKey(dataIndex))(key)) {
             var newDatamap = this.datamap ^ dataIndex;
             if (newDatamap === 0 && this.nodemap === 0)
                 return empty;
@@ -180,14 +203,18 @@ function delet(keyEquals, key, keyHash, shift) {
     }
     if ((this.nodemap & bit) !== 0) {
         var nodeIndex = index(this.nodemap,bit);
-        var recRes = this.getNode(nodeIndex).delet(keyEquals, key, keyHash, shift + 5);
-        var nodemapWithout = this.nodemap ^ nodeIndex;
-        throw "TODO"
-        // if (popCount(nodemapWithout) == 0) {
-        //     // 
-        // }
-        // return new Node(this.datamap, this.nodemap ^ nodeIndex, remove1(this.content, this.content.length - nodeIndex - 1));
+        var recNode = this.getNode(nodeIndex);
+        var recRes = recNode.delet(keyEquals, key, keyHash, shift + 5);
+        if (recNode === recRes) return this;
+        if (recRes.isSingleton()) {
+            if (this.content.length === 1)
+                return recRes;
+            return new Node(this.datamap | bit, this.nodemap ^ bit,
+                            remove2insert1(this.content, 2 * index(this.datamap, bit), this.content.length - 2 - nodeIndex, recRes));
+        }
+        return new Node(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
     }
+    return this;
 }
 
 function l(k, m) {
@@ -247,3 +274,7 @@ exports.toArrayBy = function (f) {
         return res;
     };
 };
+
+exports.debugShow = function (m) {
+    return JSON.stringify(m);
+}

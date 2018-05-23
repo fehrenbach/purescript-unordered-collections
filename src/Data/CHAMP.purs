@@ -36,3 +36,8 @@ foreign import deletePurs :: forall k v. (k -> k -> Boolean) -> k -> Int -> CHAM
 
 delete :: forall k v. Hashable k => k -> CHAMP k v -> CHAMP k v
 delete k = deletePurs (==) k (hash k)
+
+foreign import debugShow :: forall k v. CHAMP k v -> String
+
+instance showCHAMP :: Show (CHAMP k v) where
+  show = debugShow

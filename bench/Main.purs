@@ -84,6 +84,9 @@ main = do
   log "HM delete all 100 distinct keys"
   bench \_ -> foldr (\i m -> HM.delete i m) hmIs100 iKeys100
 
+  log "CH delete all 100 distinct keys"
+  bench \_ -> foldr (\i m -> CHAMP.delete i m) chIs100 iKeys100
+
   log "OM delete all 100 distinct keys"
   bench \_ -> foldr (\i m -> OM.delete i m) omIs100 iKeys100
 
@@ -117,6 +120,9 @@ main = do
 
   log "HM delete all 100 distinct keys"
   bench \_ -> foldr (\i m -> HM.delete i m) hmSi100 sKeys100
+
+  log "CH delete all 100 distinct keys"
+  bench \_ -> foldr (\i m -> CHAMP.delete i m) chSi100 sKeys100
 
   log "OM delete all 100 distinct keys"
   bench \_ -> foldr (\i m -> OM.delete i m) omSi100 sKeys100

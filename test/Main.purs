@@ -114,8 +114,12 @@ main = do
     Nothing == (HashMap.lookup k $ HashMap.delete k $ HashMap.insert k v $ arbitraryMap a)
 
   log "CHAMP delete removes"
-  quickCheck $ \ k v (a :: Array (Tuple CollidingInt String)) ->
-    Nothing == (CHAMP.lookup k $ CHAMP.delete k $ CHAMP.insert k v $ arbitraryCHAMP a)
+  quickCheck' 10000 $ \ k v (a :: Array (Tuple CollidingInt Boolean)) ->
+    Nothing == (CHAMP.lookup k $ CHAMP.delete k $ CHAMP.insert k v $ arbitraryCHAMP a) <?> ("k: " <> show k <>
+         "\nv: " <> show v <>
+         "\na: " <> show a <>
+         "\nbefore: " <> show (CHAMP.insert k v (arbitraryCHAMP a)) <>
+         "\nafter : " <> show (CHAMP.delete k $ CHAMP.insert k v $ arbitraryCHAMP a))
 
   log "delete idempotent"
   quickCheck $ \ k (a :: Array (Tuple CollidingInt String)) ->
