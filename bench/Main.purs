@@ -14,7 +14,7 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as OM
 import Data.Tuple (Tuple(..))
-import Performance.Minibench (bench)
+import Performance.Minibench (bench, benchWith)
 
 si :: Int -> Array (Tuple String Int)
 si n = map (\i -> Tuple (show i) i) $ range 1 n
@@ -37,6 +37,12 @@ main = do
   let hmIs10000 = insertHM is10000
   let omIs10000 = insertOM is10000
   let chIs10000 = insertCH is10000
+
+  log "CH singleton"
+  benchWith 1000000 \_ -> CHAMP.singleton 5 42
+
+  log "OM singleton"
+  benchWith 1000000 \_ -> OM.singleton 5 42
 
   log "HM insert 10000 distinct integers"
   bench \_ -> insertHM is10000

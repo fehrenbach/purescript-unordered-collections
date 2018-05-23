@@ -65,7 +65,6 @@ Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, sh
     return new Collision(remove1(this.keys, i), remove1(this.values, i));
 }
 
-
 Collision.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < this.keys.length; i++)
         res.push(f(this.keys[i])(this.values[i]));
@@ -278,3 +277,11 @@ exports.toArrayBy = function (f) {
 exports.debugShow = function (m) {
     return JSON.stringify(m);
 }
+
+exports.singletonPurs = function (k) {
+    return function (keyHash) {
+        return function (v) {
+            return new Node(1 << (keyHash & 31), 0, [k, v]);
+        };
+    };
+};

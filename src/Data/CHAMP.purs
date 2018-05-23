@@ -41,3 +41,8 @@ foreign import debugShow :: forall k v. CHAMP k v -> String
 
 instance showCHAMP :: Show (CHAMP k v) where
   show = debugShow
+
+foreign import singletonPurs :: forall k v. k -> Int -> v -> CHAMP k v
+
+singleton :: forall k v. Hashable k => k -> v -> CHAMP k v
+singleton k = singletonPurs k (hash k)
