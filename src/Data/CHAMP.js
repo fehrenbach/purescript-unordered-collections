@@ -16,9 +16,85 @@ MapNode.prototype.getValue = function (index) {
 MapNode.prototype.getNode = function (index) {
     return this.content[this.content.length - 1 - index];
 }
-MapNode.prototype.lookup = lookup;
-MapNode.prototype.insert = insert;
-MapNode.prototype.delet = delet;
+
+MapNode.prototype.lookup = function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
+    var bit = mask(keyHash, shift);
+    if ((this.datamap & bit) !== 0) {
+        var i = index(this.datamap, bit);
+        // TODO compare hashes first?
+        if (keyEquals(key)(this.getKey(i))) {
+            return Just(this.getValue(i));
+        }
+        return Nothing;
+    }
+    if ((this.nodemap & bit) !== 0) {
+        return this.getNode(index(this.nodemap, bit)).lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5);
+    }
+    return Nothing;
+}
+
+MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
+    var bit = mask(keyHash, shift);
+    var i = index(this.datamap, bit);
+    if ((this.datamap & bit) !== 0) {
+        if (keyEquals(this.getKey(i))(key)) {
+            return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
+        } else {
+            var newNode = binaryNode(this.getKey(i), hashFunction(this.getKey(i)), this.getValue(i), key, keyHash, value, shift + 5);
+            var newLength = this.content.length - 1;
+            var newContent = new Array(newLength);
+            var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
+            var j = 0;
+            for (; j < i * 2; j++) newContent[j] = this.content[j];
+            for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
+            newContent[j++] = newNode;
+            for (; j < newLength; j++) newContent[j] = this.content[j+1];
+            return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
+        }
+    }
+    if ((this.nodemap & bit) !== 0) {
+        var nodeIndex = index(this.nodemap, bit);
+        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
+        /*const*/ newContent = this.content.slice();
+        newContent[newContent.length - nodeIndex - 1] = newNode;
+        return new MapNode(this.datamap, this.nodemap, newContent);
+    }
+    /*const*/ newContent = new Array(this.content.length + 2);
+    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
+    newContent[k++] = key;
+    newContent[k++] = value;
+    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
+    return new MapNode(this.datamap | bit, this.nodemap, newContent);
+}
+
+MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
+    var bit = mask(keyHash, shift);
+    if ((this.datamap & bit) !== 0) {
+        var dataIndex = index(this.datamap, bit);
+        if (keyEquals(this.getKey(dataIndex))(key)) {
+            var newDatamap = this.datamap ^ dataIndex;
+            if (newDatamap === 0 && this.nodemap === 0)
+                return empty;
+            return new MapNode(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
+        }
+        return this;
+    }
+    if ((this.nodemap & bit) !== 0) {
+        var nodeIndex = index(this.nodemap,bit);
+        var recNode = this.getNode(nodeIndex);
+        var recRes = recNode.delet(keyEquals, key, keyHash, shift + 5);
+        if (recNode === recRes) return this;
+        if (recRes.isSingleton()) {
+            if (this.content.length === 1)
+                return recRes;
+            return new MapNode(this.datamap | bit, this.nodemap ^ bit,
+                            remove2insert1(this.content, 2 * index(this.datamap, bit), this.content.length - 2 - nodeIndex, recRes));
+        }
+        return new MapNode(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
+    }
+    return this;
+}
+
 MapNode.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < popCount(this.datamap) * 2;) {
         var k = this.content[i++];
@@ -28,6 +104,7 @@ MapNode.prototype.toArrayBy = function (f, res) {
     for (; i < this.content.length; i++)
         this.content[i].toArrayBy(f, res);
 }
+
 MapNode.prototype.isSingleton = function () {
     return this.nodemap === 0 && this.content.length === 2;
 }
@@ -78,22 +155,6 @@ function mask(keyHash, shift) {
 
 function index(map, bit) {
     return popCount(map & (bit - 1));
-}
-
-function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
-    var bit = mask(keyHash, shift);
-    if ((this.datamap & bit) !== 0) {
-        var i = index(this.datamap, bit);
-        // TODO compare hashes first?
-        if (keyEquals(key)(this.getKey(i))) {
-            return Just(this.getValue(i));
-        }
-        return Nothing;
-    }
-    if ((this.nodemap & bit) !== 0) {
-        return this.getNode(index(this.nodemap, bit)).lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5);
-    }
-    return Nothing;
 }
 
 function popCount (n) {
@@ -154,67 +215,6 @@ function remove2insert1(a, removeIndex, insertIndex, v1) {
     return res;
 }
 
-function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
-    var bit = mask(keyHash, shift);
-    var i = index(this.datamap, bit);
-    if ((this.datamap & bit) !== 0) {
-        if (keyEquals(this.getKey(i))(key)) {
-            return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
-        } else {
-            var newNode = binaryNode(this.getKey(i), hashFunction(this.getKey(i)), this.getValue(i), key, keyHash, value, shift + 5);
-            var newLength = this.content.length - 1;
-            var newContent = new Array(newLength);
-            var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
-            var j = 0;
-            for (; j < i * 2; j++) newContent[j] = this.content[j];
-            for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
-            newContent[j++] = newNode;
-            for (; j < newLength; j++) newContent[j] = this.content[j+1];
-            return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
-        }
-    }
-    if ((this.nodemap & bit) !== 0) {
-        var nodeIndex = index(this.nodemap, bit);
-        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
-        /*const*/ newContent = this.content.slice();
-        newContent[newContent.length - nodeIndex - 1] = newNode;
-        return new MapNode(this.datamap, this.nodemap, newContent);
-    }
-    /*const*/ newContent = new Array(this.content.length + 2);
-    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
-    newContent[k++] = key;
-    newContent[k++] = value;
-    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
-    return new MapNode(this.datamap | bit, this.nodemap, newContent);
-}
-
-function delet(keyEquals, key, keyHash, shift) {
-    var bit = mask(keyHash, shift);
-    if ((this.datamap & bit) !== 0) {
-        var dataIndex = index(this.datamap, bit);
-        if (keyEquals(this.getKey(dataIndex))(key)) {
-            var newDatamap = this.datamap ^ dataIndex;
-            if (newDatamap === 0 && this.nodemap === 0)
-                return empty;
-            return new MapNode(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
-        }
-        return this;
-    }
-    if ((this.nodemap & bit) !== 0) {
-        var nodeIndex = index(this.nodemap,bit);
-        var recNode = this.getNode(nodeIndex);
-        var recRes = recNode.delet(keyEquals, key, keyHash, shift + 5);
-        if (recNode === recRes) return this;
-        if (recRes.isSingleton()) {
-            if (this.content.length === 1)
-                return recRes;
-            return new MapNode(this.datamap | bit, this.nodemap ^ bit,
-                            remove2insert1(this.content, 2 * index(this.datamap, bit), this.content.length - 2 - nodeIndex, recRes));
-        }
-        return new MapNode(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
-    }
-    return this;
-}
 
 function l(k, m) {
     return m.lookup(null, function (a) { return a; }, function(a) { return function (b) { return a == b; } },
