@@ -1,4 +1,21 @@
-module Data.CHAMP where
+module Data.CHAMP (
+  CHAMP,
+
+  empty,
+  -- isEmpty,
+
+  singleton,
+
+  lookup,
+  insert,
+  delete,
+
+  fromFoldable,
+  toArrayBy,
+  keys,
+  values
+
+  ) where
 
 import Prelude
 
@@ -8,6 +25,11 @@ import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 
 foreign import data CHAMP :: Type -> Type -> Type
+
+foreign import eqPurs :: forall k v. (k -> k -> Boolean) -> (v -> v -> Boolean) -> CHAMP k v -> CHAMP k v -> Boolean
+
+instance eqCHAMP :: (Eq k, Eq v) => Eq (CHAMP k v) where
+  eq = eqPurs eq eq
 
 foreign import empty :: forall k v. CHAMP k v
 
@@ -46,3 +68,7 @@ foreign import singletonPurs :: forall k v. k -> Int -> v -> CHAMP k v
 
 singleton :: forall k v. Hashable k => k -> v -> CHAMP k v
 singleton k = singletonPurs k (hash k)
+
+-- Can't have isEmpty with that implementation with that signature..
+-- isEmpty :: forall k v. CHAMP k v -> Boolean
+-- isEmpty = (empty == _)

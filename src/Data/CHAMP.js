@@ -72,10 +72,8 @@ MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
     if ((this.datamap & bit) !== 0) {
         var dataIndex = index(this.datamap, bit);
         if (keyEquals(this.getKey(dataIndex))(key)) {
-            var newDatamap = this.datamap ^ dataIndex;
-            if (newDatamap === 0 && this.nodemap === 0)
-                return empty;
-            return new MapNode(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
+            if (this.nodemap === 0 && this.content.length === 2) return empty;
+            return new MapNode(this.datamap ^ bit, this.nodemap, remove2(this.content, dataIndex * 2));
         }
         return this;
     }
@@ -85,10 +83,12 @@ MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
         var recRes = recNode.delet(keyEquals, key, keyHash, shift + 5);
         if (recNode === recRes) return this;
         if (recRes.isSingleton()) {
-            if (this.content.length === 1)
+            if (this.content.length === 1) {
+                recRes.datamap = this.nodemap;
                 return recRes;
+            }
             return new MapNode(this.datamap | bit, this.nodemap ^ bit,
-                            remove2insert1(this.content, 2 * index(this.datamap, bit), this.content.length - 2 - nodeIndex, recRes));
+                               insert2remove1(this.content, 2 * index(this.datamap, bit), recRes.content[0], recRes.content[1], this.content.length - 1 - nodeIndex));
         }
         return new MapNode(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
     }
@@ -107,6 +107,18 @@ MapNode.prototype.toArrayBy = function (f, res) {
 
 MapNode.prototype.isSingleton = function () {
     return this.nodemap === 0 && this.content.length === 2;
+}
+
+MapNode.prototype.eq = function(kf, vf, that) {
+    if (this === that) return true;
+    if (this.constructor !== that.constructor || this.nodemap !== that.nodemap || this.datamap !== that.datamap) return false;
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        if (kf(this.content[i])(that.content[i])) i++; else return false;
+        if (vf(this.content[i])(that.content[i])) i++; else return false;
+    }
+    for (; i < this.content.length; i++)
+        if (!this.content[i].eq(kf, vf, that.content[i])) return false;
+    return true;
 }
 
 /** @constructor */
@@ -138,7 +150,7 @@ Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, sh
             break;
     if (i === this.keys.length) return this;
     if (this.keys.length === 2)
-        return new MapNode(mask(keyHash, shift), 0, [this.keys[1 - i], this.values[1 - i]]);
+        return new MapNode(1 << (keyHash & 31), 0, [this.keys[1 - i], this.values[1 - i]]);
     return new Collision(remove1(this.keys, i), remove1(this.values, i));
 }
 
@@ -148,6 +160,22 @@ Collision.prototype.toArrayBy = function (f, res) {
 }
 
 Collision.prototype.isSingleton = function () { return false; }
+
+Collision.prototype.eq = function(kf, vf, that) {
+    if (this.constructor !== that.constructor || this.keys.length !== that.keys.length) return false;
+    outer:
+    for (var i = 0; i < this.keys.length; i++) {
+        for (var j = 0; j < that.keys.length; j++) {
+            if (kf(this.keys[i])(that.keys[j])) {
+                if (vf(this.values[i])(that.values[j]))
+                    continue outer;
+                else
+                    return false;
+            }
+        }
+    }
+    return true;
+}
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -215,6 +243,15 @@ function remove2insert1(a, removeIndex, insertIndex, v1) {
     return res;
 }
 
+function insert2remove1(a, insertIndex, v1, v2, removeIndex) {
+    var res = new Array(a.length + 1);
+    for (var i = 0; i < insertIndex; i++) res[i] = a[i];
+    res[i++] = v1;
+    res[i++] = v2;
+    for (; i < removeIndex + 2; i++) res[i] = a[i-2];
+    for (; i < res.length; i++) res[i] = a[i-1];
+    return res;
+}
 
 function l(k, m) {
     return m.lookup(null, function (a) { return a; }, function(a) { return function (b) { return a == b; } },
@@ -282,6 +319,16 @@ exports.singletonPurs = function (k) {
     return function (keyHash) {
         return function (v) {
             return new MapNode(1 << (keyHash & 31), 0, [k, v]);
+        };
+    };
+};
+
+exports.eqPurs = function (kf) {
+    return function (vf) {
+        return function (a) {
+            return function (b) {
+                return a.eq(kf, vf, b);
+            };
         };
     };
 };

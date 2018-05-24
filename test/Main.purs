@@ -137,6 +137,28 @@ main = do
          "\ngot     : " <> show (HashMap.delete k (HashMap.insert k v m)) <>
          "\ninserted: " <> show (HashMap.insert k v m))
 
+  log "CHAMP delete preserves structure"
+  quickCheck' 100000 $ \ k v (a :: Array (Tuple CollidingInt Boolean)) ->
+    let m = arbitraryCHAMP (A.filter (\t -> fst t /= k) a) in
+    CHAMP.delete k (CHAMP.insert k v m) == m
+    <?> ("k: " <> show k <>
+         "\nv: " <> show v <>
+         "\na: " <> show (A.filter (\t -> fst t /= k) a) <>
+         "\nexpected: " <> show m <>
+         "\ngot     : " <> show (CHAMP.delete k (CHAMP.insert k v m)) <>
+         "\ninserted: " <> show (CHAMP.insert k v m))
+
+  log "CHAMP delete preserves structure -- show"
+  quickCheck' 100000 $ \ k v (a :: Array (Tuple CollidingInt Boolean)) ->
+    let m = arbitraryCHAMP (A.filter (\t -> fst t /= k) a) in
+    show (CHAMP.delete k (CHAMP.insert k v m)) == show m
+    <?> ("k: " <> show k <>
+         "\nv: " <> show v <>
+         "\na: " <> show (A.filter (\t -> fst t /= k) a) <>
+         "\nexpected: " <> show m <>
+         "\ngot     : " <> show (CHAMP.delete k (CHAMP.insert k v m)) <>
+         "\ninserted: " <> show (CHAMP.insert k v m))
+
   log "fromFoldable (a <> b) = fromFoldable a <> fromFoldable b"
   quickCheck' 1000 \ a (b :: Array (Tuple CollidingInt String)) ->
     HashMap.fromFoldable (a <> b) === HashMap.fromFoldable a <> HashMap.fromFoldable b
