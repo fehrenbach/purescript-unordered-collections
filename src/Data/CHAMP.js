@@ -121,6 +121,12 @@ MapNode.prototype.eq = function(kf, vf, that) {
     return true;
 }
 
+MapNode.prototype.size = function () {
+    var res = popCount(this.datamap);
+    for (var i = res * 2; i < this.content.length; i++) res += this.content[i].size();
+    return res;
+}
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -175,6 +181,10 @@ Collision.prototype.eq = function(kf, vf, that) {
         }
     }
     return true;
+}
+
+Collision.prototype.size = function () {
+    return this.keys.length;
 }
 
 function mask(keyHash, shift) {
@@ -332,3 +342,9 @@ exports.eqPurs = function (kf) {
         };
     };
 };
+
+exports.isEmpty = function (m) {
+    return (m.datamap === 0 && m.nodemap === 0);
+}
+
+exports.size = function (m) { return m.size(); }
