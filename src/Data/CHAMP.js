@@ -127,6 +127,19 @@ MapNode.prototype.size = function () {
     return res;
 }
 
+MapNode.prototype.imap = function (f) {
+    var newContent = this.content.slice();
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        var k = this.content[i++];
+        var v = this.content[i++];
+        newContent[i-2] = k;
+        newContent[i-1] = f(k)(v);
+    }
+    for (; i < this.content.length; i++)
+        newContent[i] = this.content[i].imap(f);
+    return new MapNode(this.datamap, this.nodemap, newContent);
+}
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -185,6 +198,13 @@ Collision.prototype.eq = function(kf, vf, that) {
 
 Collision.prototype.size = function () {
     return this.keys.length;
+}
+
+Collision.prototype.imap = function (f) {
+    var newValues = this.values.slice();
+    for (var i = 0; i < this.values.length; i++)
+        newValues[i] = f(this.keys[i])(this.values[i]);
+    return new Collision(this.keys, newValues);
 }
 
 function mask(keyHash, shift) {
@@ -348,3 +368,9 @@ exports.isEmpty = function (m) {
 }
 
 exports.size = function (m) { return m.size(); }
+
+exports.mapWithIndexPurs = function (f) {
+    return function (m) {
+        return m.imap(f);
+    };
+};

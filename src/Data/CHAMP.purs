@@ -25,6 +25,7 @@ module Data.CHAMP (
 import Prelude
 
 import Data.Foldable (class Foldable, foldl)
+import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Tuple (Tuple(..))
@@ -40,6 +41,14 @@ foreign import eqPurs :: forall k v. (k -> k -> Boolean) -> (v -> v -> Boolean) 
 
 instance eqCHAMP :: (Eq k, Eq v) => Eq (CHAMP k v) where
   eq = eqPurs eq eq
+
+instance functorCHAMP :: Functor (CHAMP k) where
+  map f = mapWithIndex (const f)
+
+instance functorWithIndexCHAMP :: FunctorWithIndex k (CHAMP k) where
+  mapWithIndex = mapWithIndexPurs
+
+foreign import mapWithIndexPurs :: forall k v w. (k -> v -> w) -> CHAMP k v -> CHAMP k w
 
 -- | The empty map.
 foreign import empty :: forall k v. CHAMP k v
