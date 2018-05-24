@@ -1,25 +1,25 @@
 "use strict";
 
 /** @constructor */
-function Node(datamap, nodemap, content) {
+function MapNode(datamap, nodemap, content) {
     this.datamap = datamap;
     this.nodemap = nodemap;
     this.content = content;
 }
 
-Node.prototype.getKey = function (index) {
+MapNode.prototype.getKey = function (index) {
     return this.content[index * 2];
 }
-Node.prototype.getValue = function (index) {
+MapNode.prototype.getValue = function (index) {
     return this.content[index * 2 + 1];
 }
-Node.prototype.getNode = function (index) {
+MapNode.prototype.getNode = function (index) {
     return this.content[this.content.length - 1 - index];
 }
-Node.prototype.lookup = lookup;
-Node.prototype.insert = insert;
-Node.prototype.delet = delet;
-Node.prototype.toArrayBy = function (f, res) {
+MapNode.prototype.lookup = lookup;
+MapNode.prototype.insert = insert;
+MapNode.prototype.delet = delet;
+MapNode.prototype.toArrayBy = function (f, res) {
     for (var i = 0; i < popCount(this.datamap) * 2;) {
         var k = this.content[i++];
         var v = this.content[i++];
@@ -28,7 +28,7 @@ Node.prototype.toArrayBy = function (f, res) {
     for (; i < this.content.length; i++)
         this.content[i].toArrayBy(f, res);
 }
-Node.prototype.isSingleton = function () {
+MapNode.prototype.isSingleton = function () {
     return this.nodemap === 0 && this.content.length === 2;
 }
 
@@ -61,7 +61,7 @@ Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, sh
             break;
     if (i === this.keys.length) return this;
     if (this.keys.length === 2)
-        return new Node(mask(keyHash, shift), 0, [this.keys[1 - i]], [this.values[1 - i]]);
+        return new MapNode(mask(keyHash, shift), 0, [this.keys[1 - i], this.values[1 - i]]);
     return new Collision(remove1(this.keys, i), remove1(this.values, i));
 }
 
@@ -108,9 +108,9 @@ function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
     var b1 = (kh1 >>> s) & 31;
     var b2 = (kh2 >>> s) & 31;
     
-    if (b1 !== b2) return new Node((1 << b1) | (1 << b2), 0, (b1 >>> 0) < (b2 >>> 0) ? [k1, v1, k2, v2] : [k2, v2, k1, v1]);
+    if (b1 !== b2) return new MapNode((1 << b1) | (1 << b2), 0, (b1 >>> 0) < (b2 >>> 0) ? [k1, v1, k2, v2] : [k2, v2, k1, v1]);
 
-    return new Node(0, 1 << b1, [binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5)]);
+    return new MapNode(0, 1 << b1, [binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5)]);
 }
 
 function overwriteTwoElements(a, index, v1, v2) {
@@ -159,7 +159,7 @@ function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var i = index(this.datamap, bit);
     if ((this.datamap & bit) !== 0) {
         if (keyEquals(this.getKey(i))(key)) {
-            return new Node(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
+            return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
         } else {
             var newNode = binaryNode(this.getKey(i), hashFunction(this.getKey(i)), this.getValue(i), key, keyHash, value, shift + 5);
             var newLength = this.content.length - 1;
@@ -170,7 +170,7 @@ function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
             for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
             newContent[j++] = newNode;
             for (; j < newLength; j++) newContent[j] = this.content[j+1];
-            return new Node(this.datamap ^ bit, this.nodemap | bit, newContent);
+            return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
         }
     }
     if ((this.nodemap & bit) !== 0) {
@@ -178,14 +178,14 @@ function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
         /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
         /*const*/ newContent = this.content.slice();
         newContent[newContent.length - nodeIndex - 1] = newNode;
-        return new Node(this.datamap, this.nodemap, newContent);
+        return new MapNode(this.datamap, this.nodemap, newContent);
     }
     /*const*/ newContent = new Array(this.content.length + 2);
     for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
     newContent[k++] = key;
     newContent[k++] = value;
     for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
-    return new Node(this.datamap | bit, this.nodemap, newContent);
+    return new MapNode(this.datamap | bit, this.nodemap, newContent);
 }
 
 function delet(keyEquals, key, keyHash, shift) {
@@ -196,7 +196,7 @@ function delet(keyEquals, key, keyHash, shift) {
             var newDatamap = this.datamap ^ dataIndex;
             if (newDatamap === 0 && this.nodemap === 0)
                 return empty;
-            return new Node(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
+            return new MapNode(newDatamap, this.nodemap, remove2(this.content, dataIndex * 2));
         }
         return this;
     }
@@ -208,10 +208,10 @@ function delet(keyEquals, key, keyHash, shift) {
         if (recRes.isSingleton()) {
             if (this.content.length === 1)
                 return recRes;
-            return new Node(this.datamap | bit, this.nodemap ^ bit,
+            return new MapNode(this.datamap | bit, this.nodemap ^ bit,
                             remove2insert1(this.content, 2 * index(this.datamap, bit), this.content.length - 2 - nodeIndex, recRes));
         }
-        return new Node(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
+        return new MapNode(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
     }
     return this;
 }
@@ -227,7 +227,7 @@ function i(k, v, m) {
                     k, k, v, 0);
 }
 
-var empty = new Node(0,0,[],[]);
+var empty = new MapNode(0,0,[]);
 
 exports.empty = empty;
 exports.lookupPurs = function (Nothing) {
@@ -281,7 +281,7 @@ exports.debugShow = function (m) {
 exports.singletonPurs = function (k) {
     return function (keyHash) {
         return function (v) {
-            return new Node(1 << (keyHash & 31), 0, [k, v]);
+            return new MapNode(1 << (keyHash & 31), 0, [k, v]);
         };
     };
 };
