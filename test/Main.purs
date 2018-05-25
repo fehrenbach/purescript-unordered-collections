@@ -7,8 +7,10 @@ import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
-import Data.Foldable (foldMap)
+import Data.Array as Array
 import Data.HashMap as HashMap
+import Data.Foldable (foldMap)
+import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.Hashable (class Hashable)
 import Data.List (List(..))
 import Data.Map as Map
@@ -40,7 +42,7 @@ instance arbitraryCollidingInt :: Arbitrary CollidingInt where
   arbitrary = CollidingInt <$> arbitrary
 
 instance collidingIntHashable :: Hashable CollidingInt where
-  hash (CollidingInt i) = i `mod` 100000
+  hash (CollidingInt i) = i `mod` 100
 
 prop ::
   forall k v.
@@ -57,8 +59,8 @@ prop = go Map.empty HashMap.empty
         go m hm (Cons (Insert k v) rest) =
           go (Map.insert k v m) (HashMap.insert k v hm) rest
 
-arbitraryMap :: forall k v. Hashable k => Array (Tuple k v) -> HashMap.HashMap k v
-arbitraryMap = HashMap.fromFoldable
+arbitraryHashMap :: forall k v. Hashable k => Array (Tuple k v) -> HashMap.HashMap k v
+arbitraryHashMap = HashMap.fromFoldable
 
 nowGood :: forall a e. Eq a => a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | e) Unit
 nowGood a b = if a == b then log "Fixed \\o/" else throw "still broken"
@@ -74,29 +76,46 @@ main = do
   quickCheck (prop :: List (Op CollidingInt CollidingInt) -> Result)
 
   log "Insert and lookup"
-  quickCheck $ \(k :: Int) (v :: Int) a ->
-    HashMap.lookup k (HashMap.insert k v (arbitraryMap a)) == Just v
-    <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show (arbitraryMap a))
+  quickCheck' 10000 $ \(k :: Int) (v :: Int) a ->
+    HashMap.lookup k (HashMap.insert k v (arbitraryHashMap a)) == Just v
+    <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show a <> ", r: " <> show (HashMap.lookup k (HashMap.insert k v (arbitraryHashMap a))))
 
-  log "toUnfoldableUnordered"
-  quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
+  log "toArrayBy"
+  quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
     let nubA = A.nubBy (\x y -> fst x == fst y) a
-        m = arbitraryMap nubA
-    in A.sort (HashMap.toUnfoldableUnordered m) == A.sort nubA
+        m = arbitraryHashMap nubA
+    in A.sort (HashMap.toArrayBy Tuple m) == A.sort nubA
+       <?> ("expected: " <> show (A.sort nubA) <> "\ngot:     " <> show (A.sort (HashMap.toArrayBy Tuple m)))
+
+  log "foldMapWithIndex (Data.Array.singleton <<< Tuple) agrees with toArrayBy"
+  quickCheck $ \ (a :: Array (Tuple CollidingInt Int)) ->
+    let m = HashMap.fromFoldable a
+    in A.sort (foldMapWithIndex (\k v -> Array.singleton (Tuple k v)) m) === A.sort (HashMap.toArrayBy Tuple m)
 
   log "delete removes"
   quickCheck $ \ k v (a :: Array (Tuple CollidingInt String)) ->
-    Nothing == (HashMap.lookup k $ HashMap.delete k $ HashMap.insert k v $ arbitraryMap a)
+    Nothing == (HashMap.lookup k $ HashMap.delete k $ HashMap.insert k v $ arbitraryHashMap a)
 
   log "delete idempotent"
   quickCheck $ \ k (a :: Array (Tuple CollidingInt String)) ->
-    let m = arbitraryMap a in
+    let m = arbitraryHashMap a in
     HashMap.delete k m == HashMap.delete k (HashMap.delete k m)
 
   log "delete preserves structure"
   quickCheck' 100000 $ \ k v (a :: Array (Tuple CollidingInt Boolean)) ->
-    let m = arbitraryMap (A.filter (\t -> fst t /= k) a) in
+    let m = arbitraryHashMap (A.filter (\t -> fst t /= k) a) in
     HashMap.delete k (HashMap.insert k v m) == m
+    <?> ("k: " <> show k <>
+         "\nv: " <> show v <>
+         "\na: " <> show (A.filter (\t -> fst t /= k) a) <>
+         "\nexpected: " <> show m <>
+         "\ngot     : " <> show (HashMap.delete k (HashMap.insert k v m)) <>
+         "\ninserted: " <> show (HashMap.insert k v m))
+
+  log "delete preserves structure -- debugShow"
+  quickCheck' 100000 $ \ k v (a :: Array (Tuple CollidingInt Boolean)) ->
+    let m = arbitraryHashMap (A.filter (\t -> fst t /= k) a) in
+    HashMap.debugShow (HashMap.delete k (HashMap.insert k v m)) == HashMap.debugShow m
     <?> ("k: " <> show k <>
          "\nv: " <> show v <>
          "\na: " <> show (A.filter (\t -> fst t /= k) a) <>
@@ -110,17 +129,17 @@ main = do
 
   log "map id = id"
   quickCheck \ (a :: Array (Tuple CollidingInt Boolean)) ->
-    let m = arbitraryMap a in
+    let m = arbitraryHashMap a in
     map id m === m
 
   log "map (f <<< g) = map f <<< map g"
   quickCheck \ (f :: Int -> Int) (g :: Int -> Int) (a :: Array (Tuple CollidingInt Int)) ->
-    let m = arbitraryMap a in
+    let m = arbitraryHashMap a in
     map (f <<< g) m === map f (map g m)
 
   log "size = alaF Additive foldMap (const 1)"
   quickCheck \ (a :: Array (Tuple CollidingInt Int)) ->
-    let m = arbitraryMap a in
+    let m = arbitraryHashMap a in
     HashMap.size m === alaF Additive foldMap (const 1) m
 
   log "Recheck previous failures:"
@@ -138,19 +157,19 @@ t54 :: Boolean
 t54 = let k = (-538828)
           v = false
           a = [(Tuple 605832 false),(Tuple 418793 false),(Tuple (-829612) false),(Tuple (-428805) true),(Tuple (-806480) true),(Tuple 637863 false),(Tuple (-616539) true),(Tuple (-650917) false),(Tuple 592866 false)]
-          m = arbitraryMap a in
+          m = arbitraryHashMap a in
       HashMap.delete k (HashMap.insert k v m) == m
 
 t105 :: Boolean
 t105 = let k = (-354590)
            v = true
            a = [(Tuple (-438814) false)]
-           m = arbitraryMap a in
+           m = arbitraryHashMap a in
        HashMap.delete k (HashMap.insert k v m) == m 
 
 t249 :: Boolean
 t249 = let k = 855538
            v = false
            a = [(Tuple 359452 false),(Tuple 903388 false)]
-           m = arbitraryMap a in
+           m = arbitraryHashMap a in
        HashMap.delete k (HashMap.insert k v m) == m
