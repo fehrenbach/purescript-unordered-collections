@@ -1,9 +1,9 @@
 {
-    "name": "purescript-unordered-containers",
+    "name": "purescript-unordered-collections",
     "license": "MPL-2.0",
     "repository": {
         "type": "git",
-        "url": "https://github.com/fehrenbach/purescript-unordered-containers.git"
+        "url": "https://github.com/fehrenbach/purescript-unordered-collections.git"
     },
     "ignore": [
         "**/.*",
