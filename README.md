@@ -18,4 +18,4 @@ Related
 Documentation
 -------------
 
-Module documentation is (going to be) [published on Pursuit](https://pursuit.purescript.org/packages/purescript-unordered-collections).
+Module documentation is [published on Pursuit](https://pursuit.purescript.org/packages/purescript-unordered-collections).
