@@ -9,6 +9,10 @@ Hash-based, immutable collection types for PureScript.
 
 The two main goals are good performance and API compatibility with the `Ord`-based collections wherever reasonable.
 
+The implementation of `HashMap` is based on "Optimizing Hash-Array
+Mapped Tries for Fast and Lean Immutable JVM Collections" (Steindorfer
+and Vinju, OOPSLA 2015, https://doi.org/10.1145/2814270.2814312).
+
 Related
 -------
 

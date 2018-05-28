@@ -40,10 +40,6 @@ import Data.Tuple (Tuple(..))
 -- | Immutable hash maps from keys `k` to values `v`.
 -- |
 -- | Note that this is an *unordered* collection.
--- |
--- | The implementation is based on "Optimizing Hash-Array Mapped
--- | Tries for Fast and Lean Immutable JVM Collections" (Steindorfer
--- | and Vinju, OOPSLA 2015, https://doi.org/10.1145/2814270.2814312).
 foreign import data HashMap :: Type -> Type -> Type
 
 foreign import eqPurs :: forall k v. (k -> k -> Boolean) -> (v -> v -> Boolean) -> HashMap k v -> HashMap k v -> Boolean
