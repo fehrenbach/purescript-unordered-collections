@@ -155,6 +155,71 @@ MapNode.prototype.ifoldMap = function (m, mappend, f) {
     return m;
 }
 
+// This builds an n-ary curried function that all values and all
+// subnodes as arguments and places them in a copy of the hashmap
+// preserving the keys, datamap, and nodemap.  Basically, a (Hashmap k
+// v) with s key-value pairs and t nodes turns into a function:
+//
+// k_0 -> .. -> k_s -> HashMap_0 k v -> .. -> HashMap_t k v -> HashMap k v
+//
+// Indices here are to be understood as count.
+//
+// The main use for this is the as the partial hashmap constructor in
+// place of the hole in this concept of an implementation of
+// traverseWithKey:
+//
+// pure ?here <*> f k1 v1 <*> f k2 v2 <*> traverseWithKey f n1 <*> traverseWithKey f n2
+MapNode.prototype.travHelper = function () {
+    // TODO could have two helpers that basically switch mode from
+    // setting values to setting nodes. That way branches would be
+    // more predictable. Because the value branch is essentially
+    // unpredictable.
+    function go(vi, vm, ni, nm, copy) {
+        if (vi < vm)
+            return function (v) {
+                return go(vi + 1, vm, ni, nm, function () { var res = copy();
+                                                            res.content[vi * 2 + 1] = v;
+                                                            return res;
+                                                          });
+            }
+        if (ni < nm)
+            return function (n) {
+                return go(vi, vm, ni+1, nm, function () { var res = copy();
+                                                          // order of parameters must match stored order
+                                                          res.content[vm*2 + ni] = n;
+                                                          return res;
+                                                        });
+            }
+        return copy();
+    }
+    var vm = popCount(this.datamap);
+    var self = this;
+    return go(0, vm, 0, this.content.length - vm * 2, function () { return new MapNode(self.datamap, self.nodemap, self.content.slice()); });
+}
+
+MapNode.prototype.ifoldMap = function (m, mappend, f) {
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        var k = this.content[i++];
+        var v = this.content[i++];
+        m = mappend(m)(f(k)(v));
+    }
+    for (; i < this.content.length; i++)
+        m = this.content[i].ifoldMap(m, mappend, f);
+    return m;
+}
+
+MapNode.prototype.itraverse = function (pure, apply, f) {
+    var m = pure(this.travHelper());
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        var k = this.content[i++];
+        var v = this.content[i++];
+        m = apply(m)(f(k)(v));
+    }
+    for (; i < this.content.length; i++)
+        m = apply(m)(this.content[i].itraverse(pure, apply, f));
+    return m;
+}
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -227,6 +292,29 @@ Collision.prototype.ifoldMap = function (m, mappend, f) {
         m = mappend(m)(f(this.keys[i])(this.values[i]));
     return m;
 }
+
+Collision.prototype.travHelper = function () {
+    function go(i, m, copy) {
+        if (i < m)
+            return function (v) {
+                return go(i + 1, m, function () { var res = copy();
+                                                  res.values[i] = v;
+                                                  return res;
+                                                });
+            }
+        return copy();
+    }
+    var self = this;
+    return go(0, this.keys.length, function () { return new Collision(self.keys, self.values.slice()); });
+}
+
+Collision.prototype.itraverse = function (pure, apply, f) {
+    var m = pure(this.travHelper());
+    for (var i = 0; i < this.keys.length; i++)
+        m = apply(m)(f(this.keys[i])(this.values[i]));
+    return m;
+}
+
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -304,17 +392,6 @@ function insert2remove1(a, insertIndex, v1, v2, removeIndex) {
     return res;
 }
 
-function l(k, m) {
-    return m.lookup(null, function (a) { return a; }, function(a) { return function (b) { return a == b; } },
-                    k, k, 0);
-}
-
-function i(k, v, m) {
-    return m.insert(function(a) { return function (b) { return a == b; } },
-                    function(a) { return a % 100; },
-                    k, k, v, 0);
-}
-
 var empty = new MapNode(0,0,[]);
 
 exports.empty = empty;
@@ -384,9 +461,11 @@ exports.eqPurs = function (kf) {
     };
 };
 
-exports.isEmpty = function (m) {
-    return (m.datamap === 0 && m.nodemap === 0);
+function isEmpty (m) {
+    return m === empty;
 }
+
+exports.isEmpty = isEmpty;
 
 exports.size = function (m) { return m.size(); }
 
@@ -401,6 +480,16 @@ exports.foldMapWithIndexPurs = function (mempty) {
         return function (f) {
             return function (m) {
                 return m.ifoldMap(mempty, mappend, f);
+            };
+        };
+    };
+};
+
+exports.traverseWithIndexPurs = function (pure) {
+    return function (apply) {
+        return function (f) {
+            return function (m) {
+                return isEmpty(m) ? pure(empty) : m.itraverse(pure, apply, f);
             };
         };
     };

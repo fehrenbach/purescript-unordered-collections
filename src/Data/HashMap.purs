@@ -35,6 +35,8 @@ import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Monoid (class Monoid, mempty)
+import Data.Traversable (class Traversable, traverse)
+import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..))
 
 -- | Immutable hash maps from keys `k` to values `v`.
@@ -82,6 +84,15 @@ instance foldableWithIndexHashMap :: FoldableWithIndex k (HashMap k) where
 
 -- First parameter is mempty, second is mappend
 foreign import foldMapWithIndexPurs :: forall k v m. m -> (m -> m -> m) -> (k -> v -> m) -> HashMap k v -> m
+
+instance traversableHashMap :: Traversable (HashMap k) where
+  traverse f = traverseWithIndex (const f)
+  sequence = traverse (\x -> x)
+
+instance traversableWithIndexHashMap :: TraversableWithIndex k (HashMap k) where
+  traverseWithIndex f m = traverseWithIndexPurs pure apply f m
+
+foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> (forall a b. m (a -> b) -> m a -> m b) -> (k -> v -> m w) -> HashMap k v -> m (HashMap k w)
 
 -- | The empty map.
 foreign import empty :: forall k v. HashMap k v

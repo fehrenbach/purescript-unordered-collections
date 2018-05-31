@@ -12,16 +12,18 @@ import Control.Monad.Eff.Exception (EXCEPTION, throw)
 import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
 import Data.Array as Array
-import Data.HashMap as HashMap
-import Data.Foldable (foldMap)
+import Data.Foldable (foldMap, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.HashMap as HashMap
 import Data.Hashable (class Hashable)
 import Data.List (List(..))
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid.Additive (Additive(..))
 import Data.Newtype (alaF)
 import Data.NonEmpty ((:|))
+import Data.Traversable (sequence, traverse)
+import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(..), fst)
 import Test.QuickCheck (Result(..), quickCheck, quickCheck', (<?>), (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
@@ -145,6 +147,27 @@ main = do
   quickCheck \ (a :: Array (Tuple CollidingInt Int)) ->
     let m = arbitraryHashMap a in
     HashMap.size m === alaF Additive foldMap (const 1) m
+
+  if Nothing == traverse (\x -> if x == 'a' then Just "bla" else Nothing) (HashMap.insert 5 'a' (HashMap.singleton 6 'z'))
+    then log "traverse passed"
+    else throw "traverse failed"
+
+  if Just (HashMap.fromFoldable [Tuple (CollidingInt 100) 108, Tuple (CollidingInt 0) 6]) ==
+     traverseWithIndex (\(CollidingInt k) v -> Just $ k + maybe 100 id v) (HashMap.insert (CollidingInt 0) (Just 6) (HashMap.singleton (CollidingInt 100) (Just 8)))
+    then log "traverse2 passed"
+    else throw "traverse2 failed"
+
+  log "sequence Just"
+  quickCheck' 1000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
+    let m = arbitraryHashMap a
+        m' = Just <$> m
+    in Just m === sequence m'
+
+  log "isEmpty"
+  quickCheck' 1000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
+    let m = arbitraryHashMap a
+        e = foldr (\(Tuple k _) m' -> HashMap.delete k m') m a
+    in HashMap.isEmpty e
 
   log "Recheck previous failures:"
   nowGood (Just 85767) $ HashMap.lookup (-102839) (HashMap.insert (-102839) 85767 (HashMap.singleton (-717313) 472415))

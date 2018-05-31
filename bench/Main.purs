@@ -18,6 +18,8 @@ import Data.Hashable (class Hashable)
 import Data.List (List)
 import Data.Map (Map)
 import Data.Map as OM
+import Data.Maybe (Maybe(..))
+import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
 import Performance.Minibench (bench, benchWith)
 
@@ -138,3 +140,13 @@ main = do
 
   -- log "OM.keys (Array)"
   -- bench \_ -> OM.keys omSi100 :: Array String
+
+  log ""
+  log "Foldable Traversable"
+  log "--------------------"
+
+  log "HM map Just and sequence 10000"
+  bench \_ -> sequence $ Just <$> hmIs10000
+
+  log "OM map Just and sequence 10000"
+  bench \_ -> sequence $ Just <$> omIs10000
