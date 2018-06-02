@@ -6,10 +6,6 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Exception (EXCEPTION, throw)
-import Control.Monad.Eff.Random (RANDOM)
 import Data.Array as A
 import Data.Array as Array
 import Data.Foldable (foldMap, foldr)
@@ -25,6 +21,9 @@ import Data.NonEmpty ((:|))
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(..), fst)
+import Effect (Effect)
+import Effect.Class.Console (log)
+import Effect.Exception (throw)
 import Test.QuickCheck (Result(..), quickCheck, quickCheck', (<?>), (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
@@ -68,13 +67,13 @@ prop = go Map.empty HashMap.empty
 arbitraryHashMap :: forall k v. Hashable k => Array (Tuple k v) -> HashMap.HashMap k v
 arbitraryHashMap = HashMap.fromFoldable
 
-nowGood :: forall a e. Eq a => a -> a -> Eff (console :: CONSOLE, exception :: EXCEPTION | e) Unit
+nowGood :: forall a. Eq a => a -> a -> Effect Unit
 nowGood a b = if a == b then log "Fixed \\o/" else throw "still broken"
 
-nowGood' :: forall e. Boolean -> Eff (console :: CONSOLE, exception :: EXCEPTION | e) Unit
+nowGood' :: Boolean -> Effect Unit
 nowGood' b = if b then log "Fixed \\o/" else throw "still broken"
 
-main :: forall e. Eff (exception :: EXCEPTION, random :: RANDOM, console :: CONSOLE | e) Unit
+main :: Effect Unit
 main = do
   log "Insert & lookup like map"
   quickCheck (prop :: List (Op Boolean Int) -> Result)
@@ -88,7 +87,7 @@ main = do
 
   log "toArrayBy"
   quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
-    let nubA = A.nubBy (\x y -> fst x == fst y) a
+    let nubA = A.nubBy (\x y -> fst x `compare` fst y) a
         m = arbitraryHashMap nubA
     in A.sort (HashMap.toArrayBy Tuple m) == A.sort nubA
        <?> ("expected: " <> show (A.sort nubA) <> "\ngot:     " <> show (A.sort (HashMap.toArrayBy Tuple m)))
@@ -136,7 +135,7 @@ main = do
   log "map id = id"
   quickCheck \ (a :: Array (Tuple CollidingInt Boolean)) ->
     let m = arbitraryHashMap a in
-    map id m === m
+    map identity m === m
 
   log "map (f <<< g) = map f <<< map g"
   quickCheck \ (f :: Int -> Int) (g :: Int -> Int) (a :: Array (Tuple CollidingInt Int)) ->
@@ -153,7 +152,7 @@ main = do
     else throw "traverse failed"
 
   if Just (HashMap.fromFoldable [Tuple (CollidingInt 100) 108, Tuple (CollidingInt 0) 6]) ==
-     traverseWithIndex (\(CollidingInt k) v -> Just $ k + maybe 100 id v) (HashMap.insert (CollidingInt 0) (Just 6) (HashMap.singleton (CollidingInt 100) (Just 8)))
+     traverseWithIndex (\(CollidingInt k) v -> Just $ k + maybe 100 identity v) (HashMap.insert (CollidingInt 0) (Just 6) (HashMap.singleton (CollidingInt 100) (Just 8)))
     then log "traverse2 passed"
     else throw "traverse2 failed"
 

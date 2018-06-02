@@ -6,8 +6,6 @@ module Bench.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
 import Data.Array (range)
 import Data.Array as Array
 import Data.Foldable (foldr)
@@ -21,6 +19,8 @@ import Data.Map as OM
 import Data.Maybe (Maybe(..))
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
+import Effect (Effect)
+import Effect.Class.Console (log)
 import Performance.Minibench (bench, benchWith)
 
 si :: Int -> Array (Tuple String Int)
@@ -35,7 +35,7 @@ insertHM a = HM.fromFoldable a
 insertOM :: forall k v. Ord k => Array (Tuple k v) -> Map k v
 insertOM a = OM.fromFoldable a
 
-main :: forall t34. Eff ( console :: CONSOLE | t34 ) Unit
+main :: Effect Unit
 main = do
   let is10000 = is 10000
   let iKeys10000 = range 1 10000
