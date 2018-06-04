@@ -11,7 +11,7 @@ import Data.Array as Array
 import Data.Foldable (foldMap, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Data.HashMap as HashMap
-import Data.Hashable (class Hashable)
+import Data.Hashable (class Hashable, hash)
 import Data.List (List(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
@@ -75,6 +75,14 @@ nowGood' b = if b then log "Fixed \\o/" else throw "still broken"
 
 main :: Effect Unit
 main = do
+  if 155 == hash {a: 5}
+    then log "Hashable record passed"
+    else throw "Hashable record failed"
+
+  if 2987129 == hash {a: 5, b: false, c: "abc"}
+    then log "Hashable record 2 passed"
+    else throw "Hashable record 2 failed"
+
   log "Insert & lookup like map"
   quickCheck (prop :: List (Op Boolean Int) -> Result)
   quickCheck (prop :: List (Op Int Int) -> Result)
@@ -191,7 +199,7 @@ t105 = let k = (-354590)
            v = true
            a = [(Tuple (-438814) false)]
            m = arbitraryHashMap a in
-       HashMap.delete k (HashMap.insert k v m) == m 
+       HashMap.delete k (HashMap.insert k v m) == m
 
 t249 :: Boolean
 t249 = let k = 855538

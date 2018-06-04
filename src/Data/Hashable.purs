@@ -1,16 +1,30 @@
 -- This Source Code Form is subject to the terms of the Mozilla Public
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
-module Data.Hashable (class Hashable, hash) where
+
+module Data.Hashable (
+  class Hashable,
+  hash,
+
+  -- HashableRecord stuff
+  class HashableRecord,
+  hashRecord
+) where
 
 import Prelude
 
 import Data.Either (Either(..))
 import Data.Enum (fromEnum)
+import Data.Eq (class EqRecord)
 import Data.Foldable (foldl)
 import Data.Int.Bits ((.^.))
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
+import Prim.Row as Row
+import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
+import Record (get)
+import Type.Prelude (class IsSymbol, SProxy(..))
+import Type.Row (RLProxy(..))
 
 -- | The `Hashable` type class represents types with decidable
 -- | equality and a hash function for use in hash-based algorithms and
@@ -84,6 +98,23 @@ instance hashableVoid :: Hashable Void where
 -- instance hashableBoundedEnum :: BoundedEnum a => Hashable a where
 --   hash = fromEnum
 
--- TODO records
+class EqRecord l r <= HashableRecord l r | l -> r where
+  hashRecord :: RLProxy l -> Record r -> Int
+
+instance hashableRecordNil :: HashableRecord Nil r where
+  hashRecord _ _ = 0
+
+instance hashableRecordCons ::
+  ( Hashable vt
+  , HashableRecord tl r
+  , IsSymbol l
+  , Row.Cons l vt whatev r
+  ) => HashableRecord (Cons l vt tl) r where
+  hashRecord rlp record = hash (get (SProxy :: SProxy l) record) * 31 + hashRecord (RLProxy :: RLProxy tl) record
+
+instance hashableRecord ::
+  (RowToList r l, HashableRecord l r, EqRecord l r)
+  => Hashable (Record r) where
+  hash = hashRecord (RLProxy :: RLProxy l)
 
 -- TODO add combinators and a generics-rep implementation
