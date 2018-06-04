@@ -125,6 +125,15 @@ MapNode.prototype.eq = function(kf, vf, that) {
     return true;
 }
 
+MapNode.prototype.hash = function (vhash) {
+    var h = this.datamap;
+    for (var i = 0; i < popCount(this.datamap); i++)
+        h = (h * 31 + vhash(this.content[i * 2 + 1])) | 0;
+    for (var j = 0; j < popCount(this.nodemap); j++)
+        h = (h * 31 + this.content[this.content.length - j - 1].hash(vhash)) | 0;
+    return h;
+}
+
 MapNode.prototype.size = function () {
     var res = popCount(this.datamap);
     for (var i = res * 2; i < this.content.length; i++) res += this.content[i].size();
@@ -274,6 +283,18 @@ Collision.prototype.eq = function(kf, vf, that) {
         }
     }
     return true;
+}
+
+Collision.prototype.hash = function (vhash) {
+    // We ignore keys because they have all the same hash anyways
+    // (we're in a collision node!)
+    var h = 0;
+    // We use just + here, not multiply&add, because order in
+    // collision nodes is undefined. A commutative combining operation
+    // allows us to simply ignore the order.
+    for (var i = 0; i < this.values.length; i++)
+        h += vhash(this.values[i]);
+    return h;
 }
 
 Collision.prototype.size = function () {
@@ -492,5 +513,11 @@ exports.traverseWithIndexPurs = function (pure) {
                 return isEmpty(m) ? pure(empty) : m.itraverse(pure, apply, f);
             };
         };
+    };
+};
+
+exports.hashPurs = function (vhash) {
+    return function (m) {
+        return m.hash(vhash);
     };
 };

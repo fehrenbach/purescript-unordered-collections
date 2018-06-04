@@ -48,6 +48,11 @@ foreign import eqPurs :: forall k v. (k -> k -> Boolean) -> (v -> v -> Boolean) 
 instance eqHashMap :: (Eq k, Eq v) => Eq (HashMap k v) where
   eq = eqPurs eq eq
 
+instance hashHashMap :: (Hashable k, Hashable v) => Hashable (HashMap k v) where
+  hash = hashPurs (hash :: v -> Int)
+
+foreign import hashPurs :: forall k v. (v -> Int) -> HashMap k v -> Int
+
 instance monoidHashMap :: Hashable k => Monoid (HashMap k v) where
   mempty = empty
 
