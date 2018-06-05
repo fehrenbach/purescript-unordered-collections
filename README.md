@@ -1,4 +1,5 @@
 # purescript-unordered-collections
+[![Build Status](https://travis-ci.org/fehrenbach/purescript-unordered-collections.svg?branch=master)](https://travis-ci.org/fehrenbach/purescript-unordered-collections)
 <a href="https://pursuit.purescript.org/packages/purescript-unordered-collections">
   <img src="https://pursuit.purescript.org/packages/purescript-unordered-collections/badge"
        alt="purescript-unordered-collections on Pursuit">
