@@ -138,7 +138,7 @@ main = do
 
   log "fromFoldable (a <> b) = fromFoldable a <> fromFoldable b"
   quickCheck' 1000 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HashMap.fromFoldable (a <> b) === HashMap.fromFoldable a <> HashMap.fromFoldable b
+    HashMap.fromFoldable (A.nubBy (\x y -> fst x `compare` fst y) (a <> b)) === HashMap.fromFoldable a <> HashMap.fromFoldable b
 
   log "map id = id"
   quickCheck \ (a :: Array (Tuple CollidingInt Boolean)) ->
