@@ -101,11 +101,11 @@ foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> 
 -- | The empty map.
 foreign import empty :: forall k v. HashMap k v
 
-foreign import lookupPurs :: forall k v. Maybe v -> (v -> Maybe v) -> (k -> k -> Boolean) -> k -> Int -> HashMap k v -> Maybe v
+foreign import lookupPurs :: forall k v. (k -> k -> Boolean) -> k -> Int -> HashMap k v -> Maybe v
 
 -- | Get a value by key.
 lookup :: forall k v. Hashable k => k -> HashMap k v -> Maybe v
-lookup k = lookupPurs Nothing Just (==) k (hash k)
+lookup k = lookupPurs (==) k (hash k)
 
 foreign import insertPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> k -> v -> HashMap k v -> HashMap k v
 

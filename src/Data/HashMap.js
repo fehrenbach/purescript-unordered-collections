@@ -4,6 +4,12 @@
 
 "use strict";
 
+// These are used in lookup. This is of course highly dependent on
+// PureScript codegen. It improves lookup performance by 25% though.
+var Data_Maybe = require("../Data.Maybe/index.js");
+var Just = Data_Maybe.Just.create;
+var Nothing = Data_Maybe.Nothing.value;
+
 /** @constructor */
 function MapNode(datamap, nodemap, content) {
     this.datamap = datamap;
@@ -11,28 +17,16 @@ function MapNode(datamap, nodemap, content) {
     this.content = content;
 }
 
-MapNode.prototype.getKey = function (index) {
-    return this.content[index * 2];
-}
-MapNode.prototype.getValue = function (index) {
-    return this.content[index * 2 + 1];
-}
-MapNode.prototype.getNode = function (index) {
-    return this.content[this.content.length - 1 - index];
-}
-
-MapNode.prototype.lookup = function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
+MapNode.prototype.lookup = function lookup(keyEquals, key, keyHash, shift) {
     var bit = mask(keyHash, shift);
     if ((this.datamap & bit) !== 0) {
         var i = index(this.datamap, bit);
-        // TODO compare hashes first?
-        if (keyEquals(key)(this.getKey(i))) {
-            return Just(this.getValue(i));
-        }
+        if (keyEquals(key)(this.content[i * 2]))
+            return Just(this.content[i * 2 + 1]);
         return Nothing;
     }
     if ((this.nodemap & bit) !== 0) {
-        return this.getNode(index(this.nodemap, bit)).lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5);
+        return this.content[this.content.length - 1 - index(this.nodemap, bit)].lookup(keyEquals, key, keyHash, shift + 5);
     }
     return Nothing;
 }
@@ -41,24 +35,23 @@ MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
     if ((this.datamap & bit) !== 0) {
-        if (keyEquals(this.getKey(i))(key)) {
+        var k = this.content[i * 2];
+        if (keyEquals(k)(key))
             return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
-        } else {
-            var newNode = binaryNode(this.getKey(i), hashFunction(this.getKey(i)), this.getValue(i), key, keyHash, value, shift + 5);
-            var newLength = this.content.length - 1;
-            var newContent = new Array(newLength);
-            var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
-            var j = 0;
-            for (; j < i * 2; j++) newContent[j] = this.content[j];
-            for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
-            newContent[j++] = newNode;
-            for (; j < newLength; j++) newContent[j] = this.content[j+1];
-            return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
-        }
+        var newNode = binaryNode(k, hashFunction(k), this.content[i*2+1], key, keyHash, value, shift + 5);
+        var newLength = this.content.length - 1;
+        var newContent = new Array(newLength);
+        var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
+        var j = 0;
+        for (; j < i * 2; j++) newContent[j] = this.content[j];
+        for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
+        newContent[j++] = newNode;
+        for (; j < newLength; j++) newContent[j] = this.content[j+1];
+        return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
     }
     if ((this.nodemap & bit) !== 0) {
         var nodeIndex = index(this.nodemap, bit);
-        /*const*/ newNode = (this.getNode(nodeIndex)).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
+        /*const*/ newNode = (this.content[this.content.length - 1 - nodeIndex]).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
         /*const*/ newContent = this.content.slice();
         newContent[newContent.length - nodeIndex - 1] = newNode;
         return new MapNode(this.datamap, this.nodemap, newContent);
@@ -75,7 +68,7 @@ MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
     var bit = mask(keyHash, shift);
     if ((this.datamap & bit) !== 0) {
         var dataIndex = index(this.datamap, bit);
-        if (keyEquals(this.getKey(dataIndex))(key)) {
+        if (keyEquals(this.content[dataIndex*2])(key)) {
             if (this.nodemap === 0 && this.content.length === 2) return empty;
             return new MapNode(this.datamap ^ bit, this.nodemap, remove2(this.content, dataIndex * 2));
         }
@@ -83,7 +76,7 @@ MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
     }
     if ((this.nodemap & bit) !== 0) {
         var nodeIndex = index(this.nodemap,bit);
-        var recNode = this.getNode(nodeIndex);
+        var recNode = this.content[this.content.length - 1 - nodeIndex];
         var recRes = recNode.delet(keyEquals, key, keyHash, shift + 5);
         if (recNode === recRes) return this;
         if (recRes.isSingleton()) {
@@ -235,7 +228,7 @@ function Collision(keys, values) {
     this.values = values;
 }
 
-Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, key, keyHash, shift) {
+Collision.prototype.lookup = function collisionLookup(keyEquals, key, keyHash, shift) {
     for (var i = 0; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
             return Just(this.values[i]);
@@ -416,15 +409,11 @@ function insert2remove1(a, insertIndex, v1, v2, removeIndex) {
 var empty = new MapNode(0,0,[]);
 
 exports.empty = empty;
-exports.lookupPurs = function (Nothing) {
-    return function (Just) {
-        return function (keyEquals) {
-            return function (key) {
-                return function (keyHash) {
-                    return function (m) {
-                        return m.lookup(Nothing, Just, keyEquals, key, keyHash, 0);
-                    };
-                };
+exports.lookupPurs = function (keyEquals) {
+    return function (key) {
+        return function (keyHash) {
+            return function (m) {
+                return m.lookup(keyEquals, key, keyHash, 0);
             };
         };
     };
