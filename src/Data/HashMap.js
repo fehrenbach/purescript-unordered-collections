@@ -7,8 +7,9 @@
 // These are used in lookup. This is of course highly dependent on
 // PureScript codegen. It improves lookup performance by 25% though.
 var Data_Maybe = require("../Data.Maybe/index.js");
-var Just = Data_Maybe.Just.create;
-var Nothing = Data_Maybe.Nothing.value;
+// I'd like to use these, but purs bundle "optimises" them away :/
+// var Just = Data_Maybe.Just.create;
+// var Nothing = Data_Maybe.Nothing.value;
 
 /** @constructor */
 function MapNode(datamap, nodemap, content) {
@@ -22,13 +23,13 @@ MapNode.prototype.lookup = function lookup(keyEquals, key, keyHash, shift) {
     if ((this.datamap & bit) !== 0) {
         var i = index(this.datamap, bit);
         if (keyEquals(key)(this.content[i * 2]))
-            return Just(this.content[i * 2 + 1]);
-        return Nothing;
+            return new Data_Maybe.Just(this.content[i * 2 + 1]);
+        return Data_Maybe.Nothing.value;
     }
     if ((this.nodemap & bit) !== 0) {
         return this.content[this.content.length - 1 - index(this.nodemap, bit)].lookup(keyEquals, key, keyHash, shift + 5);
     }
-    return Nothing;
+    return Data_Maybe.Nothing.value;
 }
 
 MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
@@ -231,8 +232,8 @@ function Collision(keys, values) {
 Collision.prototype.lookup = function collisionLookup(keyEquals, key, keyHash, shift) {
     for (var i = 0; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
-            return Just(this.values[i]);
-    return Nothing;
+            return new Data_Maybe.Just(this.values[i]);
+    return Data_Maybe.Nothing.value;
 };
 
 Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, key, keyHash, value, shift) {
