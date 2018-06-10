@@ -20,9 +20,13 @@ module Data.HashMap (
   alter,
 
   fromFoldable,
+  fromFoldableBy,
   toArrayBy,
   keys,
   values,
+
+  union,
+  unionWith,
 
   nubHash,
 
@@ -32,7 +36,7 @@ module Data.HashMap (
 import Prelude
 
 import Data.Foldable (class Foldable, foldl, foldlDefault, foldrDefault)
-import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndexDefault, foldrWithIndex, foldrWithIndexDefault)
+import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
@@ -124,6 +128,9 @@ insert = insertPurs (==) hash
 fromFoldable :: forall f k v. Foldable f => Hashable k => f (Tuple k v) -> HashMap k v
 fromFoldable = foldl (\m (Tuple k v) -> insert k v m) empty
 
+fromFoldableBy :: forall f a k v. Foldable f => Hashable k => (a -> k) -> (a -> v) -> f a -> HashMap k v
+fromFoldableBy kf vf = foldl (\m a -> insert (kf a) (vf a) m) empty
+
 -- | Convert a map to an array using the given function.
 -- |
 -- | Note that no particular order is guaranteed.
@@ -160,7 +167,7 @@ delete k = deletePurs (==) k (hash k)
 foreign import debugShow :: forall k v. HashMap k v -> String
 
 instance showHashMap :: (Show k, Show v) => Show (HashMap k v) where
-  show m = "(fromFoldable " <> show (toArrayBy Tuple m) <> ")"
+  show m = debugShow m -- "(fromFoldable " <> show (toArrayBy Tuple m) <> ")"
 
 foreign import singletonPurs :: forall k v. k -> Int -> v -> HashMap k v
 
@@ -200,9 +207,14 @@ foreign import size :: forall k v. HashMap k v -> Int
 -- |
 -- | This is the same as `Semigroup.append` aka `(<>)`.
 union :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
-union l r = foldrWithIndex insert r l -- TODO we can probably do better
+union = unionWith const
 
 foreign import nubHashPurs :: forall a. (a -> a -> Boolean) -> (a -> Int) -> Array a -> Array a
+
+foreign import unionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+
+unionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+unionWith = unionWithPurs eq hash
 
 -- | Remove duplicates from an array.
 -- |

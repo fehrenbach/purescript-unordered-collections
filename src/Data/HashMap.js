@@ -158,6 +158,112 @@ MapNode.prototype.ifoldMap = function (m, mappend, f) {
     return m;
 }
 
+MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
+    if (this.constructor === that.constructor) {
+        var datamap = 0;
+        var nodemap = 0;
+        var data = [];
+        var nodes = [];
+        // This goes through the 32 bits in the resulting
+        // (data|node)maps one by one. It's not pretty, but it allows
+        // us to handle the 9 cases (in/notin + left/right + data/node)
+        // fairly uniformly. I'd like to use bitops to calculate the
+        // maps, but sometimes we move stuff from the datamaps to the
+        // nodemap, which makes that difficult.
+        for (var i = 0; i < 32; i++) {
+            var bit = 1 << i;
+            var thisDataIndex = index(this.datamap, bit);
+            var thatDataIndex = index(that.datamap, bit);
+            var thisNodeIndex = index(this.nodemap, bit);
+            var thatNodeIndex = index(that.nodemap, bit);
+            if ((this.datamap & bit) !== 0) {
+                if ((that.datamap & bit) !== 0) {
+                    // in both data => combine or merge into node
+                    if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
+                        // equal, merge with f
+                        datamap |= bit;
+                        data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
+                    } else {
+                        // key hashes equal at this level, merge into node
+                        nodemap |= bit;
+                        nodes.push(binaryNode(
+                            this.content[thisDataIndex * 2],
+                            hash(this.content[thisDataIndex * 2]),
+                            this.content[thisDataIndex*2+1],
+                            that.content[thatDataIndex * 2],
+                            hash(that.content[thatDataIndex * 2]),
+                            that.content[thatDataIndex*2+1],
+                            shift + 5));
+                    }
+                } else {
+                    if ((that.nodemap & bit) !== 0) {
+                        // merge thisData into thatNode
+                        // This sucks a bit because we don't have insertWith
+                        var k = this.content[thisDataIndex * 2];
+                        var hk = hash(k);
+                        var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+                        nodemap |= bit;
+                        nodes.push(
+                            that.content[that.content.length - thatNodeIndex - 1]
+                                .insert(eq, hash, k, hk,
+                                        (res === Data_Maybe.Nothing.value) ? this.content[thisDataIndex * 2 + 1] : f(this.content[thisDataIndex * 2 + 1])(res.value0),
+                                        shift + 5));
+                    } else {
+                        // add thisData
+                        datamap |= bit;
+                        data.push(this.content[thisDataIndex * 2], this.content[thisDataIndex * 2 + 1]);
+                    }
+                }
+            }
+            else {
+                if ((this.nodemap & bit) !== 0) {
+                    if ((that.datamap & bit) !== 0) {
+                        // merge thatData into thisNode
+                        // This sucks a bit because we don't have insertWith
+                        var k = that.content[thatDataIndex * 2];
+                        var hk = hash(k);
+                        var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+                        nodemap |= bit;
+                        nodes.push(
+                            this.content[this.content.length - thisNodeIndex - 1]
+                                .insert(eq, hash, k, hk,
+                                        (res === Data_Maybe.Nothing.value) ? that.content[thatDataIndex * 2 + 1] : f(res.value0)(that.content[thatDataIndex * 2 + 1]),
+                                        shift + 5));
+                    } else {
+                        if ((that.nodemap & bit) !== 0) {
+                            // recursively merge nodes
+                            nodemap |= bit;
+                            nodes.push(
+                                this.content[this.content.length - thisNodeIndex - 1].unionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5));
+                        } else {
+                            // add this node
+                            nodemap |= bit;
+                            nodes.push(this.content[this.content.length - thisNodeIndex - 1]);
+                        }
+                    }
+                } else {
+                    if ((that.datamap & bit) !== 0) {
+                        // add that data
+                        datamap |= bit;
+                        data.push(that.content[thatDataIndex * 2], that.content[thatDataIndex * 2 + 1]);
+                    } else {
+                        if ((that.nodemap & bit) !== 0) {
+                            // add that node
+                            nodemap |= bit;
+                            nodes.push(that.content[that.content.length - thatNodeIndex - 1]);
+                        } else {
+                            // not anywhere
+                            // do nothing
+                        }
+                    }
+                }
+            }
+        }
+        return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
+    }
+    throw "TODO union with collision"
+}
+
 // This builds an n-ary curried function that all values and all
 // subnodes as arguments and places them in a copy of the hashmap
 // preserving the keys, datamap, and nodemap.  Basically, a (Hashmap k
@@ -330,6 +436,34 @@ Collision.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
+Collision.prototype.unionWith = function (eq, hash, f, that, shift) {
+    if (that.constructor !== Collision)
+        throw "TODO";
+    var keys = [];
+    var values = [];
+    var added = Array(that.keys.length).fill(false);
+    outer:
+    for (var i = 0; i < this.keys.length; i++) {
+        for (var j = 0; j < that.keys.length; j++) {
+            if (eq(this.keys[i])(that.keys[j])) {
+                keys.push(this.keys[i]);
+                values.push(f(this.values[i])(that.values[j]));
+                added[j] = true;
+                continue outer;
+            }
+        }
+        keys.push(this.keys[i]);
+        values.push(this.values[i]);
+        added[j] = true;
+    }
+    for (var k = 0; k < that.keys.length; k++) {
+        if (!added[k]) {
+            keys.push(that.keys[k]);
+            values.push(that.values[k]);
+        }
+    }
+    return new Collision(keys, values);
+}
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -437,6 +571,18 @@ exports.deletePurs = function (keyEquals) {
         return function (keyHash) {
             return function (m) {
                 return m.delet(keyEquals, key, keyHash, 0);
+            };
+        };
+    };
+};
+
+exports.unionWithPurs = function (eq) {
+    return function (hash) {
+        return function (f) {
+            return function (l) {
+                return function (r) {
+                    return l.unionWith(eq, hash, f, r, 0);
+                };
             };
         };
     };

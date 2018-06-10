@@ -8,8 +8,8 @@ import Prelude
 
 import Data.Array (range)
 import Data.Array as Array
-import Data.Foldable (foldr)
-import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Foldable (foldMap, foldl, foldr)
+import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.Hashable (class Hashable)
@@ -85,6 +85,19 @@ main = do
   bench \_ -> foldr (\i m -> OM.delete i m) omIs100 iKeys100
 
   log ""
+  log "Bulk insert"
+  log "-----------"
+
+  log "HM foldl is10000"
+  bench \_ -> foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty is10000
+
+  log "HM fromFoldable is10000"
+  bench \_ -> HM.fromFoldable is10000
+
+  log "HM foldMap is10000"
+  bench \_ -> foldMap (\(Tuple k v) -> HM.singleton k v) is10000
+
+  log ""
   log "STRING KEYS"
   log "-----------"
   let si100 = si 100
@@ -150,6 +163,19 @@ main = do
 
   log "OM map Just and sequence 10000"
   bench \_ -> sequence $ Just <$> omIs10000
+
+  log ""
+  log "UnionWith"
+  log "---------"
+  
+  log "HM union"
+  bench \_ -> HM.union hmIs10000 hmIs10000
+
+  log "HM unionWith const"
+  bench \_ -> HM.unionWith const hmIs10000 hmIs10000
+
+  log "HM repeated insertion"
+  bench \_ -> foldrWithIndex HM.insert hmIs10000 hmIs10000
 
   log ""
   log "Nub"
