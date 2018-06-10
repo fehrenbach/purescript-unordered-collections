@@ -185,6 +185,18 @@ main = do
   nowGood' t105
   nowGood' t249
 
+  log "Array nub"
+  quickCheck' 1000 $ \ (a :: Array CollidingInt) ->
+    Array.nub a === HashMap.nubHash a
+
+  log "Array nub 2"
+  quickCheck' 1000 $ \ (a :: Array String) ->
+    Array.nub a === HashMap.nubHash a
+
+  log "Array nub 3"
+  quickCheck' 1000 $ \ (a :: Array Boolean) ->
+    Array.nub a === HashMap.nubHash a
+
   log "Done."
 
 t54 :: Boolean

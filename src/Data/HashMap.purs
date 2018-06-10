@@ -24,6 +24,8 @@ module Data.HashMap (
   keys,
   values,
 
+  nubHash,
+
   debugShow
   ) where
 
@@ -199,3 +201,12 @@ foreign import size :: forall k v. HashMap k v -> Int
 -- | This is the same as `Semigroup.append` aka `(<>)`.
 union :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
 union l r = foldrWithIndex insert r l -- TODO we can probably do better
+
+foreign import nubHashPurs :: forall a. (a -> a -> Boolean) -> (a -> Int) -> Array a -> Array a
+
+-- | Remove duplicates from an array.
+-- |
+-- | Like `nub` from `Data.Array`, but uses a `Hashable` constraint
+-- | instead of an `Ord` constraint.
+nubHash :: forall a. Hashable a => Array a -> Array a
+nubHash = nubHashPurs (==) hash

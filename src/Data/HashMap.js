@@ -511,3 +511,22 @@ exports.hashPurs = function (vhash) {
         return m.hash(vhash);
     };
 };
+
+// TODO ideally this would use a mutable HashSet instead
+exports.nubHashPurs = function (eq) {
+    return function (hash) {
+        return function (a) {
+            var m = empty;
+            var r = [];
+            for (var i = 0; i < a.length; i++) {
+                var x = a[i];
+                var hx = hash(x);
+                if (m.lookup(eq, x, hx, 0) !== Data_Maybe.Nothing.value)
+                    continue;
+                m = m.insert(eq, hash, x, hx, null, 0);
+                r.push(x);
+            }
+            return r;
+        };
+    };
+};

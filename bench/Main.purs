@@ -150,3 +150,49 @@ main = do
 
   log "OM map Just and sequence 10000"
   bench \_ -> sequence $ Just <$> omIs10000
+
+  log ""
+  log "Nub"
+  log "---"
+
+  let ints10 = range 1 10
+  log "Array.nub 10 ints"
+  bench \_ -> Array.nub ints10
+
+  log "nubHash 10 ints"
+  bench \_ -> HM.nubHash ints10
+
+  let ints20 = range 1 10 <> range 1 10
+  log "Array.nub 20 ints"
+  bench \_ -> Array.nub ints20
+
+  log "nubHash 20 ints"
+  bench \_ -> HM.nubHash ints20
+
+  let ints1000 = range 1 1000
+  log "Array.nub 1000 ints"
+  bench \_ -> Array.nub ints1000
+
+  log "nubHash 1000 ints"
+  bench \_ -> HM.nubHash ints1000
+
+  let ints2000 = range 1 1000 <> range 1 1000
+  log "Array.nub 2000 ints"
+  bench \_ -> Array.nub ints1000
+
+  log "nubHash 2000 ints"
+  bench \_ -> HM.nubHash ints1000
+
+  let strings1000 = map show $ range 1 1000
+  log "Array.nub 1000 strings"
+  bench \_ -> Array.nub strings1000
+
+  log "nubHash 1000 strings"
+  bench \_ -> HM.nubHash strings1000
+
+  let strings2000 = strings1000 <> strings1000
+  log "Array.nub 2000 strings"
+  bench \_ -> Array.nub strings1000
+
+  log "nubHash 2000 strings"
+  bench \_ -> HM.nubHash strings1000
