@@ -25,7 +25,7 @@ import Data.Tuple (Tuple(..), fst)
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
-import Test.QuickCheck (Result(..), quickCheck, quickCheck', (<?>), (===))
+import Test.QuickCheck (Result(..), mkSeed, quickCheck, quickCheck', quickCheckWithSeed, (<?>), (===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Gen (oneOf)
 
@@ -138,9 +138,16 @@ main = do
          "\ngot     : " <> show (HM.delete k (HM.insert k v m)) <>
          "\ninserted: " <> show (HM.insert k v m))
 
-  log "fromFoldable (a <> b) = fromFoldable a <> fromFoldable b"
+  log "fromFoldable (b <> a) = fromFoldable a <> fromFoldable b"
   quickCheck' 1000 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HM.fromFoldable (A.nubBy (\x y -> fst x `compare` fst y) (a <> b)) === HM.fromFoldable a <> HM.fromFoldable b
+    HM.fromFoldable (b <> a) === HM.fromFoldable a <> HM.fromFoldable b
+  quickCheckWithSeed (mkSeed 376236318) 1 \ a (b :: Array (Tuple CollidingInt String)) ->
+    HM.fromFoldable (b <> a) == HM.fromFoldable a <> HM.fromFoldable b
+    <?> (  "   a: " <> show a <>
+         "\n   b: " <> show b <>
+         "\n hma: " <> show (HM.fromFoldable a) <>
+         "\n hmb: " <> show (HM.fromFoldable b) <>
+         "\nhmab: " <> show (HM.fromFoldable (a <> b)))
 
   log "union = repeated insertion"
   quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt String)) b ->
