@@ -10,6 +10,7 @@ import Data.Array as A
 import Data.Array as Array
 import Data.Foldable (foldMap, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex)
+import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.Hashable (class Hashable, hash)
 import Data.List (List(..))
@@ -65,7 +66,7 @@ prop = go OM.empty HM.empty
         go m hm (Cons (Insert k v) rest) =
           go (OM.insert k v m) (HM.insert k v hm) rest
 
-arbitraryHM :: forall k v. Hashable k => Array (Tuple k v) -> HM.HashMap k v
+arbitraryHM :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
 arbitraryHM = HM.fromFoldable
 
 nowGood :: forall a. Eq a => a -> a -> Effect Unit
@@ -199,6 +200,9 @@ main = do
     let m = arbitraryHM a
         e = foldr (\(Tuple k _) m' -> HM.delete k m') m a
     in HM.isEmpty e
+
+  log "isEmpty of union"
+  nowGood' (HM.isEmpty (HM.empty `HM.union` HM.empty :: HashMap Int Int))
 
   log "Recheck previous failures:"
   nowGood (Just 85767) $ HM.lookup (-102839) (HM.insert (-102839) 85767 (HM.singleton (-717313) 472415))
