@@ -164,6 +164,7 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
         var nodemap = 0;
         var data = [];
         var nodes = [];
+        var skipmap = this.datamap | this.nodemap | that.datamap | that.nodemap;
         // This goes through the 32 bits in the resulting
         // (data|node)maps one by one. It's not pretty, but it allows
         // us to handle the 9 cases (in/notin + left/right + data/node)
@@ -172,6 +173,7 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
         // nodemap, which makes that difficult.
         for (var i = 0; i < 32; i++) {
             var bit = 1 << i;
+            if ((skipmap & bit) === 0) continue;
             var thisDataIndex = index(this.datamap, bit);
             var thatDataIndex = index(that.datamap, bit);
             var thisNodeIndex = index(this.nodemap, bit);
@@ -254,6 +256,7 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
                         } else {
                             // not anywhere
                             // do nothing
+                            // this is unreachable because we skip these bits early
                         }
                     }
                 }
