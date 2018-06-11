@@ -584,8 +584,6 @@ exports.unionWithPurs = function (eq) {
         return function (f) {
             return function (l) {
                 return function (r) {
-                    if (l === empty) return r;
-                    if (r === empty) return l;
                     return l.unionWith(eq, hash, f, r, 0);
                 };
             };
@@ -624,7 +622,7 @@ exports.eqPurs = function (kf) {
 };
 
 function isEmpty (m) {
-    return m === empty;
+    return m.datamap === 0 && m.nodemap === 0;
 }
 
 exports.isEmpty = isEmpty;
