@@ -264,7 +264,7 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
         }
         return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
     }
-    throw "TODO union with collision"
+    throw "Trying to union a MapNode with something else";
 }
 
 // This builds an n-ary curried function that all values and all
@@ -441,7 +441,7 @@ Collision.prototype.itraverse = function (pure, apply, f) {
 
 Collision.prototype.unionWith = function (eq, hash, f, that, shift) {
     if (that.constructor !== Collision)
-        throw "TODO";
+        throw "Trying to union a Collision with something else";
     var keys = [];
     var values = [];
     var added = Array(that.keys.length).fill(false);
