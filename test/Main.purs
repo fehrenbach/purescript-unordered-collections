@@ -9,7 +9,7 @@ import Prelude
 import Data.Array as A
 import Data.Array as Array
 import Data.Foldable (foldMap, foldr)
-import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex)
+import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.Hashable (class Hashable, hash)
@@ -140,9 +140,9 @@ main = do
 
   log "fromFoldable (b <> a) = fromFoldable a <> fromFoldable b"
   quickCheck' 1000 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HM.fromFoldable (b <> a) === HM.fromFoldable a <> HM.fromFoldable b
+    HM.fromFoldable (a <> b) === HM.fromFoldable a <> HM.fromFoldable b
   quickCheckWithSeed (mkSeed 376236318) 1 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HM.fromFoldable (b <> a) == HM.fromFoldable a <> HM.fromFoldable b
+    HM.fromFoldable (a <> b) == HM.fromFoldable a <> HM.fromFoldable b
     <?> (  "   a: " <> show a <>
          "\n   b: " <> show b <>
          "\n hma: " <> show (HM.fromFoldable a) <>
@@ -153,7 +153,11 @@ main = do
   quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt String)) b ->
     let m = arbitraryHM a
         n = arbitraryHM b
-    in HM.union m n  === foldrWithIndex HM.insert n m
+    in HM.union m n  === foldlWithIndex (\k m' v -> HM.insert k v m') m n
+  quickCheckWithSeed (mkSeed 376236318) 1 $ \(a :: Array (Tuple CollidingInt String)) b ->
+    let m = arbitraryHM a
+        n = arbitraryHM b
+    in HM.union m n  === foldlWithIndex (\k m' v -> HM.insert k v m') m n
 
   log "unionWith agrees with OrdMap"
   quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) c f ->
@@ -166,11 +170,11 @@ main = do
     Array.sort (OM.toUnfoldable (OM.unionWith f (OM.fromFoldable a) (OM.fromFoldable b)))
 
 
-  log "unionWith const = union"
+  log "unionWith (flip const) = union"
   quickCheck $ \(a :: Array (Tuple CollidingInt String)) b ->
     let m = arbitraryHM a
         n = arbitraryHM b
-    in HM.union m n  === HM.unionWith const m n
+    in HM.union m n  === HM.unionWith (flip const) m n
 
   log "map id = id"
   quickCheck \ (a :: Array (Tuple CollidingInt Boolean)) ->
