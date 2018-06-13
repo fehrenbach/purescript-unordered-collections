@@ -213,6 +213,9 @@ foreign import nubHashPurs :: forall a. (a -> a -> Boolean) -> (a -> Int) -> Arr
 
 foreign import unionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
 
+-- | Union two maps, combining the values for keys that appear in both maps using the given function.
+-- |
+-- | `unionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 unionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
 unionWith = unionWithPurs eq hash
 
