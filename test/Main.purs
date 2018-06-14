@@ -12,6 +12,7 @@ import Data.Foldable (foldMap, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
+import Data.HashSet as HS
 import Data.Hashable (class Hashable, hash)
 import Data.List (List(..))
 import Data.Map as OM
@@ -19,6 +20,7 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid.Additive (Additive(..))
 import Data.Newtype (alaF)
 import Data.NonEmpty ((:|))
+import Data.Set as OS
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(..), fst)
@@ -223,6 +225,85 @@ main = do
   nowGood' t54
   nowGood' t105
   nowGood' t249
+
+  log "intersection = fromFoldable OS.intersection"
+  quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt String)) (b :: Array (Tuple CollidingInt String)) ->
+    HS.fromFoldable (OS.intersection (OS.fromFoldable a) (OS.fromFoldable b)) === HS.fromFoldable a `HS.intersection` HS.fromFoldable b
+  quickCheckWithSeed (mkSeed 376236318) 1 $ \(a :: Array (Tuple CollidingInt String)) b ->
+    let m = arbitraryHM a
+        n = arbitraryHM b
+    in HM.union m n  === foldlWithIndex (\k m' v -> HM.insert k v m') m n
+
+  log "l `HS.union` r === r `HS.union` l"
+  quickCheck' 10000 \(l' :: Array CollidingInt) (r':: Array CollidingInt) ->
+    let l = HS.fromFoldable l'
+        r = HS.fromFoldable r'
+    in l `HS.union` r === r `HS.union` l
+
+  log "HS.union associative"
+  quickCheck' 10000 \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in (a `HS.union` b) `HS.union` c === a `HS.union` (b `HS.union` c)
+
+  log "l `HS.intersection` r === r `HS.intersection` l"
+  quickCheck' 10000 \(l' :: Array CollidingInt) (r':: Array CollidingInt) ->
+    let l = HS.fromFoldable l'
+        r = HS.fromFoldable r'
+    in l `HS.intersection` r === r `HS.intersection` l
+
+  log "HS.intersection associative"
+  quickCheck' 10000 \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in (a `HS.intersection` b) `HS.intersection` c === a `HS.intersection` (b `HS.intersection` c)
+
+  log "union with empty"
+  quickCheck' 10000 \(a :: Array CollidingInt) ->
+    HS.fromFoldable a `HS.union` HS.empty === HS.fromFoldable a
+
+  log "union with empty 2"
+  quickCheck' 10000 \(a :: Array CollidingInt) ->
+    HS.empty `HS.union` HS.fromFoldable a === HS.fromFoldable a
+
+  log "intersection with empty"
+  quickCheck' 10000 \(a :: Array CollidingInt) ->
+    HS.fromFoldable a `HS.intersection` HS.empty === HS.empty
+
+  log "intersection with empty"
+  quickCheck' 10000 \(a :: Array CollidingInt) ->
+    HS.empty `HS.intersection` HS.fromFoldable a === HS.empty
+
+  log "union distributes over intersection"
+  quickCheck' 10000 \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in a `HS.union` (b `HS.intersection` c) === (a `HS.union` b) `HS.intersection` (a `HS.union` c)
+  quickCheckWithSeed (mkSeed 1105310412) 1 $ \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in a `HS.union` (b `HS.intersection` c) === (a `HS.union` b) `HS.intersection` (a `HS.union` c)
+
+  log "intersection distributes over union"
+  quickCheckWithSeed (mkSeed 1169792041) 1 $ \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in a `HS.intersection` (b `HS.union` c) === (a `HS.intersection` b) `HS.union` (a `HS.intersection` c)
+  quickCheckWithSeed (mkSeed 1240581038) 1 $ \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in a `HS.intersection` (b `HS.union` c) === (a `HS.intersection` b) `HS.union` (a `HS.intersection` c)
+  quickCheck' 10000 \(a' :: Array CollidingInt) (b' :: Array CollidingInt) (c' :: Array CollidingInt) ->
+    let a = HS.fromFoldable a'
+        b = HS.fromFoldable b'
+        c = HS.fromFoldable c'
+    in a `HS.intersection` (b `HS.union` c) === (a `HS.intersection` b) `HS.union` (a `HS.intersection` c)
 
   log "Array nub"
   quickCheck' 1000 $ \ (a :: Array CollidingInt) ->

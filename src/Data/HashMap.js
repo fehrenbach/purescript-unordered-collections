@@ -267,6 +267,70 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
     throw "Trying to union a MapNode with something else";
 }
 
+MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+    var datamap = 0;
+    var nodemap = 0;
+    var data = [];
+    var nodes = [];
+    var skipmap = (this.datamap | this.nodemap) & (that.datamap | that.nodemap);
+    // This goes through the 32 bits in the resulting (data|node)maps
+    // one by one. I'd like to use bitops to calculate the maps, but
+    // sometimes we move stuff from the nodemap into the datamap, and
+    // sometimes hashes collide, which makes that difficult.
+    for (var i = 0; i < 32; i++) {
+        var bit = 1 << i;
+        if ((skipmap & bit) === 0) continue;
+
+        var inThisData = (this.datamap & bit) !== 0;
+        var inThatData = (that.datamap & bit) !== 0;
+
+        if (inThisData) {
+            var thisDataIndex = index(this.datamap, bit);
+            if (inThatData) {
+                var thatDataIndex = index(that.datamap, bit);
+                if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
+                    datamap |= bit;
+                    data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
+                }
+            } else {
+                var thatNodeIndex = index(that.nodemap, bit);
+                var k = this.content[thisDataIndex * 2];
+                var hk = hash(k);
+                var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+                if (res !== Data_Maybe.Nothing.value) {
+                    datamap |= bit;
+                    data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(res.value0));
+                }
+            }
+        } else {
+            var thisNodeIndex = index(this.nodemap, bit);
+            if (inThatData) {
+                var thatDataIndex = index(that.datamap, bit);
+                var k = that.content[thatDataIndex * 2];
+                var hk = hash(k);
+                var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+                if (res !== Data_Maybe.Nothing.value) {
+                    datamap |= bit;
+                    data.push(that.content[thatDataIndex * 2], f(res.value0)(that.content[thatDataIndex * 2 + 1]));
+                }
+            } else {
+                var thatNodeIndex = index(that.nodemap, bit);
+                var recRes = this.content[this.content.length - thisNodeIndex - 1].intersectionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
+                if (isEmpty(recRes)) continue;
+                if (recRes.isSingleton()) {
+                    datamap |= bit;
+                    data.push(recRes.content[0], recRes.content[1]);
+                } else {
+                    nodemap |= bit;
+                    nodes.push(recRes);
+                }
+            }
+        }
+    }
+    return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
+}
+
+
 // This builds an n-ary curried function that all values and all
 // subnodes as arguments and places them in a copy of the hashmap
 // preserving the keys, datamap, and nodemap.  Basically, a (Hashmap k
@@ -468,6 +532,32 @@ Collision.prototype.unionWith = function (eq, hash, f, that, shift) {
     return new Collision(keys, values);
 }
 
+Collision.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+    if (that.constructor !== Collision)
+        throw "Trying to intersect a Collision with something else";
+    var keys = [];
+    var values = [];
+    outer:
+    for (var i = 0; i < this.keys.length; i++) {
+        for (var j = 0; j < that.keys.length; j++) {
+            if (eq(this.keys[i])(that.keys[j])) {
+                keys.push(this.keys[i]);
+                values.push(f(this.values[i])(that.values[j]));
+                continue outer;
+            }
+        }
+    }
+    if (keys.length === 0)
+        return empty;
+    // This is a bit dodgy. We return a fake MapNode (wrong datamap
+    // (WHICH CANNOT BE 0, OTHERWISE isEmpty THINKS IT'S EMPTY!) and
+    // nodemap), but it's okay, because we will immediately
+    // deconstruct it in the MapNode.intersectionWith.
+    if (keys.length === 1)
+        return new MapNode(1, 0, [keys[0], values[0]]);
+    return new Collision(keys, values);
+}
+
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
 }
@@ -487,7 +577,7 @@ function binaryNode(k1, kh1, v1, k2, kh2, v2, s) {
 
     var b1 = (kh1 >>> s) & 31;
     var b2 = (kh2 >>> s) & 31;
-    
+
     if (b1 !== b2) return new MapNode((1 << b1) | (1 << b2), 0, (b1 >>> 0) < (b2 >>> 0) ? [k1, v1, k2, v2] : [k2, v2, k1, v1]);
 
     return new MapNode(0, 1 << b1, [binaryNode(k1, kh1, v1, k2, kh2, v2, s + 5)]);
@@ -585,6 +675,18 @@ exports.unionWithPurs = function (eq) {
             return function (l) {
                 return function (r) {
                     return l.unionWith(eq, hash, f, r, 0);
+                };
+            };
+        };
+    };
+};
+
+exports.intersectionWithPurs = function (eq) {
+    return function (hash) {
+        return function (f) {
+            return function (l) {
+                return function (r) {
+                    return l.intersectionWith(eq, hash, f, r, 0);
                 };
             };
         };

@@ -27,6 +27,9 @@ module Data.HashMap (
 
   union,
   unionWith,
+  intersection,
+  intersectionWith,
+
 
   nubHash,
 
@@ -218,6 +221,22 @@ foreign import unionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) ->
 -- | `unionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 unionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
 unionWith = unionWithPurs eq hash
+
+-- | Intersect two maps.
+-- |
+-- | For duplicate keys, we keep the value from the right map.
+-- |
+-- | This is the same as `Semigroup.append` aka `(<>)`.
+intersection :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
+intersection = intersectionWith (\_ x -> x)
+
+foreign import intersectionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+
+-- | Intersect two maps, combining the values for keys that appear in both maps using the given function.
+-- |
+-- | `intersectionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
+intersectionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+intersectionWith = intersectionWithPurs eq hash
 
 -- | Remove duplicates from an array.
 -- |
