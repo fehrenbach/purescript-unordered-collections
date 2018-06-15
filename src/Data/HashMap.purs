@@ -30,7 +30,6 @@ module Data.HashMap (
   intersection,
   intersectionWith,
 
-
   nubHash,
 
   debugShow
@@ -170,7 +169,7 @@ delete k = deletePurs (==) k (hash k)
 foreign import debugShow :: forall k v. HashMap k v -> String
 
 instance showHashMap :: (Show k, Show v) => Show (HashMap k v) where
-  show m = debugShow m -- "(fromFoldable " <> show (toArrayBy Tuple m) <> ")"
+  show m = "(fromFoldable " <> show (toArrayBy Tuple m) <> ")"
 
 foreign import singletonPurs :: forall k v. k -> Int -> v -> HashMap k v
 

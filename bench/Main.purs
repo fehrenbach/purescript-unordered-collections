@@ -12,6 +12,7 @@ import Data.Foldable (foldMap, foldl, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
+import Data.HashSet as HS
 import Data.Hashable (class Hashable)
 import Data.List (List)
 import Data.Map (Map)
@@ -204,10 +205,10 @@ main = do
 
   let ints2000 = range 1 1000 <> range 1 1000
   log "Array.nub 2000 ints"
-  bench \_ -> Array.nub ints1000
+  bench \_ -> Array.nub ints2000
 
   log "nubHash 2000 ints"
-  bench \_ -> HM.nubHash ints1000
+  bench \_ -> HM.nubHash ints2000
 
   let strings1000 = map show $ range 1 1000
   log "Array.nub 1000 strings"
@@ -216,9 +217,15 @@ main = do
   log "nubHash 1000 strings"
   bench \_ -> HM.nubHash strings1000
 
+  log "toArray <<< HashSet.fromFoldable 1000 strings"
+  bench \_ -> HS.toArray (HS.fromFoldable strings1000)
+
   let strings2000 = strings1000 <> strings1000
   log "Array.nub 2000 strings"
-  bench \_ -> Array.nub strings1000
+  bench \_ -> Array.nub strings2000
 
   log "nubHash 2000 strings"
-  bench \_ -> HM.nubHash strings1000
+  bench \_ -> HM.nubHash strings2000
+
+  log "toArray <<< HashSet.fromFoldable 2000 strings"
+  bench \_ -> HS.toArray (HS.fromFoldable strings2000)
