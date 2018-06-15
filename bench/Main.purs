@@ -18,6 +18,7 @@ import Data.List (List)
 import Data.Map (Map)
 import Data.Map as OM
 import Data.Maybe (Maybe(..))
+import Data.Set as OS
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
@@ -168,7 +169,7 @@ main = do
   log ""
   log "UnionWith"
   log "---------"
-  
+
   log "HM union"
   bench \_ -> HM.union hmIs10000 hmIs10000
 
@@ -229,3 +230,39 @@ main = do
 
   log "toArray <<< HashSet.fromFoldable 2000 strings"
   bench \_ -> HS.toArray (HS.fromFoldable strings2000)
+
+  log ""
+  log "Sets"
+  log "-----------"
+
+  let i100 = range 0 100
+  let os100 = OS.fromFoldable i100
+  let hs100 = HS.fromFoldable i100
+
+  let i10000 = range 0 10000
+  let os10000 = OS.fromFoldable i10000
+  let hs10000 = HS.fromFoldable i10000
+
+  log "HS.union i100 i10000"
+  bench \_ -> hs100 `HS.union` hs10000
+
+  log "OS.union i100 i10000"
+  bench \_ -> os100 `OS.union` os10000
+
+  log "HS.union i10000 i100 "
+  bench \_ -> hs10000 `HS.union` hs100
+
+  log "OS.union i10000 i100"
+  bench \_ -> os10000 `OS.union` os100
+
+  log "HS.intersection i100 i10000"
+  bench \_ -> hs100 `HS.intersection` hs10000
+
+  log "OS.intersection i100 i10000"
+  bench \_ -> os100 `OS.intersection` os10000
+
+  log "HS.intersection i10000 i100 "
+  bench \_ -> hs10000 `HS.intersection` hs100
+
+  log "OS.intersection i10000 i100"
+  bench \_ -> os10000 `OS.intersection` os100
