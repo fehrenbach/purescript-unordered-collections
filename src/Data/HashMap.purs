@@ -66,7 +66,7 @@ instance monoidHashMap :: Hashable k => Monoid (HashMap k v) where
 
 -- | This is "the shallow" semigroup instance, where maps themselves
 -- | are combined using `union` rather than elements being combined.
--- | For duplicate keys, values from the right map are preserved.
+-- | For duplicate keys, values from the left map are preserved.
 instance semigroupHashMap :: Hashable k => Semigroup (HashMap k v) where
   append = union
 
@@ -205,11 +205,11 @@ foreign import size :: forall k v. HashMap k v -> Int
 
 -- | Union two maps.
 -- |
--- | For duplicate keys, we keep the value from the right map.
+-- | For duplicate keys, we keep the value from the left map.
 -- |
 -- | This is the same as `Semigroup.append` aka `(<>)`.
 union :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
-union = unionWith (\_ x -> x)
+union = unionWith const
 
 foreign import nubHashPurs :: forall a. (a -> a -> Boolean) -> (a -> Int) -> Array a -> Array a
 
