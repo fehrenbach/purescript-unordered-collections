@@ -33,7 +33,9 @@ import Data.Hashable (class Hashable)
 newtype HashSet a = HashSet (M.HashMap a Unit)
 
 derive newtype instance eqHashSet :: Eq a => Eq (HashSet a)
--- derive newtype instance showHashSet :: Show a => Show (HashSet a)
+
+instance showHashSet :: Show a => Show (HashSet a) where
+  show s = "(fromFoldable " <> show (toArray s) <> ")"
 
 -- | The empty set.
 empty :: forall a. HashSet a
