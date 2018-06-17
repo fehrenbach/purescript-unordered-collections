@@ -65,6 +65,39 @@ MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash
     return new MapNode(this.datamap | bit, this.nodemap, newContent);
 }
 
+MapNode.prototype.insertWith = function insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift) {
+    var bit = mask(keyHash, shift);
+    var i = index(this.datamap, bit);
+    if ((this.datamap & bit) !== 0) {
+        var k = this.content[i * 2];
+        if (keyEquals(k)(key))
+            return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, f(this.content[i*2+1])(value)));
+        var newNode = binaryNode(k, hashFunction(k), this.content[i*2+1], key, keyHash, value, shift + 5);
+        var newLength = this.content.length - 1;
+        var newContent = new Array(newLength);
+        var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
+        var j = 0;
+        for (; j < i * 2; j++) newContent[j] = this.content[j];
+        for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
+        newContent[j++] = newNode;
+        for (; j < newLength; j++) newContent[j] = this.content[j+1];
+        return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
+    }
+    if ((this.nodemap & bit) !== 0) {
+        var nodeIndex = index(this.nodemap, bit);
+        /*const*/ newNode = (this.content[this.content.length - 1 - nodeIndex]).insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift + 5);
+        /*const*/ newContent = this.content.slice();
+        newContent[newContent.length - nodeIndex - 1] = newNode;
+        return new MapNode(this.datamap, this.nodemap, newContent);
+    }
+    /*const*/ newContent = new Array(this.content.length + 2);
+    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
+    newContent[k++] = key;
+    newContent[k++] = value;
+    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
+    return new MapNode(this.datamap | bit, this.nodemap, newContent);
+}
+
 MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
     var bit = mask(keyHash, shift);
     if ((this.datamap & bit) !== 0) {
@@ -418,6 +451,16 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
                          copyAndOverwriteOrExtend1(this.values, i, value));
 };
 
+Collision.prototype.insertWith = function collisionInsert(keyEquals, hashFunction, f, key, keyHash, value, shift) {
+    var i = 0;
+    for (; i < this.keys.length; i++)
+        if (keyEquals(key)(this.keys[i]))
+            return new Collision(copyAndOverwrite(this.keys, i, key),
+                                 copyAndOverwrite(this.values, i, f(this.values[i])(value)));
+    return new Collision(copyAndOverwriteOrExtend1(this.keys, i, key),
+                         copyAndOverwriteOrExtend1(this.values, i, value));
+};
+
 Collision.prototype.delet = function collisionDelete(keyEquals, key, keyHash, shift) {
     var i = 0;
     for (; i < this.keys.length; i++)
@@ -653,6 +696,20 @@ exports.insertPurs = function (keyEquals) {
             return function (value) {
                 return function (m) {
                     return m.insert(keyEquals, hashFunction, key, hashFunction(key), value, 0);
+                };
+            };
+        };
+    };
+};
+
+exports.insertWithPurs = function (keyEquals) {
+    return function (hashFunction) {
+        return function (f) {
+            return function (key) {
+                return function (value) {
+                    return function (m) {
+                        return m.insertWith(keyEquals, hashFunction, f, key, hashFunction(key), value, 0);
+                    };
                 };
             };
         };

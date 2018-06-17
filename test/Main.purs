@@ -97,6 +97,11 @@ main = do
     HM.lookup k (HM.insert k v (arbitraryHM a)) == Just v
     <?> ("k: " <> show k <> ", v: " <> show v <> ", m: " <> show a <> ", r: " <> show (HM.lookup k (HM.insert k v (arbitraryHM a))))
 
+  log "insertWith (<>)"
+  if (HM.insertWith (<>) 5 "b" (HM.singleton 5 "a")) == (HM.singleton 5 "ab")
+    then log "passed"
+    else throw "failed"
+
   log "toArrayBy"
   quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
     let nubA = A.nubBy (\x y -> fst x `compare` fst y) a

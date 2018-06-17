@@ -10,6 +10,7 @@ module Data.HashMap (
 
   lookup,
   insert,
+  insertWith,
   delete,
 
   size,
@@ -122,6 +123,19 @@ foreign import insertPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> k 
 -- | `lookup k (insert k v m) == Just v`
 insert :: forall k v. Hashable k => k -> v -> HashMap k v -> HashMap k v
 insert = insertPurs (==) hash
+
+foreign import insertWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
+
+-- | Insert or update a value with the given function.
+-- |
+-- | The combining function is called with the existing value as the
+-- | first argument and the new value as the second argument.
+-- |
+-- | ```PureScript
+-- | insertWith (<>) 5 "b" (singleton 5 "a") == singleton 5 "ab"
+-- | ```
+insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
+insertWith = insertWithPurs (==) hash
 
 -- | Turn a foldable functor of pairs into a hash map.
 -- |

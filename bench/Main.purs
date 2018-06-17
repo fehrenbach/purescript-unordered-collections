@@ -40,6 +40,7 @@ insertOM a = OM.fromFoldable a
 main :: Effect Unit
 main = do
   let is10000 = is 10000
+  let is20000 = is 10000 <> is 10000
   let iKeys10000 = range 1 10000
   let hmIs10000 = insertHM is10000
   let omIs10000 = insertOM is10000
@@ -56,6 +57,8 @@ main = do
   log "OM insert 10000 distinct integers"
   bench \_ -> insertOM is10000
 
+  log "HM insertWith (<>) (2x 10000 integers)"
+  bench \_ -> foldr (\(Tuple i x) -> HM.insertWith (<>) i x) HM.empty is20000
 
   log "HM lookup all 10000 distinct integers"
   bench \_ -> map (\i -> HM.lookup i hmIs10000) iKeys10000
