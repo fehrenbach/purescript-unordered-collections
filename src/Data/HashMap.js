@@ -40,29 +40,15 @@ MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash
         if (keyEquals(k)(key))
             return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, value));
         var newNode = binaryNode(k, hashFunction(k), this.content[i*2+1], key, keyHash, value, shift + 5);
-        var newLength = this.content.length - 1;
-        var newContent = new Array(newLength);
-        var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
-        var j = 0;
-        for (; j < i * 2; j++) newContent[j] = this.content[j];
-        for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
-        newContent[j++] = newNode;
-        for (; j < newLength; j++) newContent[j] = this.content[j+1];
-        return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
+        return new MapNode(this.datamap ^ bit, this.nodemap | bit, remove2insert1(this.content, i * 2, this.content.length - index(this.nodemap, bit) - 2, newNode));
     }
     if ((this.nodemap & bit) !== 0) {
-        var nodeIndex = index(this.nodemap, bit);
-        /*const*/ newNode = (this.content[this.content.length - 1 - nodeIndex]).insert(keyEquals, hashFunction, key, keyHash, value, shift + 5);
-        /*const*/ newContent = this.content.slice();
-        newContent[newContent.length - nodeIndex - 1] = newNode;
-        return new MapNode(this.datamap, this.nodemap, newContent);
+        var n = this.content.length - 1 - index(this.nodemap, bit);
+        return new MapNode(this.datamap, this.nodemap,
+                           copyAndOverwrite(this.content, n,
+                                            this.content[n].insert(keyEquals, hashFunction, key, keyHash, value, shift + 5)));
     }
-    /*const*/ newContent = new Array(this.content.length + 2);
-    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
-    newContent[k++] = key;
-    newContent[k++] = value;
-    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
-    return new MapNode(this.datamap | bit, this.nodemap, newContent);
+    return new MapNode(this.datamap | bit, this.nodemap, insert2(this.content, i*2, key, value));
 }
 
 MapNode.prototype.insertWith = function insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift) {
@@ -73,29 +59,15 @@ MapNode.prototype.insertWith = function insertWith(keyEquals, hashFunction, f, k
         if (keyEquals(k)(key))
             return new MapNode(this.datamap, this.nodemap, overwriteTwoElements(this.content, i*2, key, f(this.content[i*2+1])(value)));
         var newNode = binaryNode(k, hashFunction(k), this.content[i*2+1], key, keyHash, value, shift + 5);
-        var newLength = this.content.length - 1;
-        var newContent = new Array(newLength);
-        var newNodeIndex = newLength - index(this.nodemap, bit) - 1; // old length - 2 - nodeindex
-        var j = 0;
-        for (; j < i * 2; j++) newContent[j] = this.content[j];
-        for (; j < newNodeIndex; j++) newContent[j] = this.content[j+2];
-        newContent[j++] = newNode;
-        for (; j < newLength; j++) newContent[j] = this.content[j+1];
-        return new MapNode(this.datamap ^ bit, this.nodemap | bit, newContent);
+        return new MapNode(this.datamap ^ bit, this.nodemap | bit, remove2insert1(this.content, i * 2, this.content.length - index(this.nodemap, bit) - 2, newNode));
     }
     if ((this.nodemap & bit) !== 0) {
-        var nodeIndex = index(this.nodemap, bit);
-        /*const*/ newNode = (this.content[this.content.length - 1 - nodeIndex]).insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift + 5);
-        /*const*/ newContent = this.content.slice();
-        newContent[newContent.length - nodeIndex - 1] = newNode;
-        return new MapNode(this.datamap, this.nodemap, newContent);
+        var n = this.content.length - 1 - index(this.nodemap, bit);
+        return new MapNode(this.datamap, this.nodemap,
+                           copyAndOverwrite(this.content, n,
+                                            this.content[n].insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift + 5)));
     }
-    /*const*/ newContent = new Array(this.content.length + 2);
-    for (var k = 0; k < i * 2; k++) newContent[k] = this.content[k];
-    newContent[k++] = key;
-    newContent[k++] = value;
-    for (; k < newContent.length; k++) newContent[k] = this.content[k - 2];
-    return new MapNode(this.datamap | bit, this.nodemap, newContent);
+    return new MapNode(this.datamap | bit, this.nodemap, insert2(this.content, i*2, key, value));
 }
 
 MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
@@ -664,6 +636,15 @@ function remove2insert1(a, removeIndex, insertIndex, v1) {
     for (; i < insertIndex; i++) res[i] = a[i+2];
     res[i++] = v1;
     for (; i < res.length; i++) res[i] = a[i+1];
+    return res;
+}
+
+function insert2(a, index, v1, v2) {
+    var res = new Array(a.length + 2);
+    for (var i = 0; i < index; i++) res[i] = a[i];
+    res[i++] = v1;
+    res[i++] = v2;
+    for (; i < res.length; i++) res[i] = a[i - 2];
     return res;
 }
 
