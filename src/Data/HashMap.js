@@ -45,7 +45,7 @@ MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash
     if ((this.nodemap & bit) !== 0) {
         var n = this.content.length - 1 - index(this.nodemap, bit);
         return new MapNode(this.datamap, this.nodemap,
-                           copyAndOverwrite(this.content, n,
+                           copyAndOverwriteOrExtend1(this.content, n,
                                             this.content[n].insert(keyEquals, hashFunction, key, keyHash, value, shift + 5)));
     }
     return new MapNode(this.datamap | bit, this.nodemap, insert2(this.content, i*2, key, value));
@@ -64,7 +64,7 @@ MapNode.prototype.insertWith = function insertWith(keyEquals, hashFunction, f, k
     if ((this.nodemap & bit) !== 0) {
         var n = this.content.length - 1 - index(this.nodemap, bit);
         return new MapNode(this.datamap, this.nodemap,
-                           copyAndOverwrite(this.content, n,
+                           copyAndOverwriteOrExtend1(this.content, n,
                                             this.content[n].insertWith(keyEquals, hashFunction, f, key, keyHash, value, shift + 5)));
     }
     return new MapNode(this.datamap | bit, this.nodemap, insert2(this.content, i*2, key, value));
@@ -93,7 +93,7 @@ MapNode.prototype.delet = function delet(keyEquals, key, keyHash, shift) {
             return new MapNode(this.datamap | bit, this.nodemap ^ bit,
                                insert2remove1(this.content, 2 * index(this.datamap, bit), recRes.content[0], recRes.content[1], this.content.length - 1 - nodeIndex));
         }
-        return new MapNode(this.datamap, this.nodemap, copyAndOverwrite(this.content, this.content.length - 1 - nodeIndex, recRes));
+        return new MapNode(this.datamap, this.nodemap, copyAndOverwriteOrExtend1(this.content, this.content.length - 1 - nodeIndex, recRes));
     }
     return this;
 }
@@ -427,8 +427,8 @@ Collision.prototype.insertWith = function collisionInsert(keyEquals, hashFunctio
     var i = 0;
     for (; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
-            return new Collision(copyAndOverwrite(this.keys, i, key),
-                                 copyAndOverwrite(this.values, i, f(this.values[i])(value)));
+            return new Collision(copyAndOverwriteOrExtend1(this.keys, i, key),
+                                 copyAndOverwriteOrExtend1(this.values, i, f(this.values[i])(value)));
     return new Collision(copyAndOverwriteOrExtend1(this.keys, i, key),
                          copyAndOverwriteOrExtend1(this.values, i, value));
 };
@@ -627,8 +627,6 @@ function copyAndOverwriteOrExtend1(a, index, v) {
     res[index] = v;
     return res;
 }
-
-var copyAndOverwrite = copyAndOverwriteOrExtend1;
 
 function remove2insert1(a, removeIndex, insertIndex, v1) {
     var res = new Array(a.length - 1);
