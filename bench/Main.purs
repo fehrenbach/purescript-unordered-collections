@@ -45,6 +45,11 @@ main = do
   let hmIs10000 = insertHM is10000
   let omIs10000 = insertOM is10000
 
+  let is100 = is 100
+  let hmIs100 = insertHM is100
+  let omIs100 = insertOM is100
+  let iKeys100 = range 1 100
+
   log "HM singleton"
   benchWith 1000000 \_ -> HM.singleton 5 42
 
@@ -65,11 +70,6 @@ main = do
 
   log "OM lookup all 10000 distinct integers"
   bench \_ -> map (\i -> OM.lookup i omIs10000) iKeys10000
-
-  let is100 = is 100
-  let hmIs100 = insertHM is100
-  let omIs100 = insertOM is100
-  let iKeys100 = range 1 100
 
   log "HM insert 100 distinct integers"
   bench \_ -> insertHM is100
@@ -182,6 +182,18 @@ main = do
   log "HM repeated insertion"
   bench \_ -> foldrWithIndex HM.insert hmIs10000 hmIs10000
 
+  log "HM difference 100 10000"
+  bench \_ -> HM.difference hmIs100 hmIs10000
+
+  -- log "OM difference 100 10000"
+  -- bench \_ -> OM.difference omIs100 omIs10000
+
+  log "HM difference 10000 100"
+  bench \_ -> HM.difference hmIs10000 hmIs100
+
+  -- log "OM difference 10000 100"
+  -- bench \_ -> OM.difference omIs10000 omIs100
+
   log ""
   log "Nub"
   log "---"
@@ -269,3 +281,15 @@ main = do
 
   log "OS.intersection i10000 i100"
   bench \_ -> os10000 `OS.intersection` os100
+
+  log "HS.difference i100 i10000"
+  bench \_ -> hs100 `HS.difference` hs10000
+
+  log "OS.difference i100 i10000"
+  bench \_ -> os100 `OS.difference` os10000
+
+  log "HS.difference i10000 i100 "
+  bench \_ -> hs10000 `HS.difference` hs100
+
+  log "OS.difference i10000 i100"
+  bench \_ -> os10000 `OS.difference` os100

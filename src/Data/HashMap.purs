@@ -30,6 +30,7 @@ module Data.HashMap (
   unionWith,
   intersection,
   intersectionWith,
+  difference,
 
   nubHash,
 
@@ -38,7 +39,7 @@ module Data.HashMap (
 
 import Prelude
 
-import Data.Foldable (class Foldable, foldl, foldlDefault, foldrDefault)
+import Data.Foldable (class Foldable, foldl, foldlDefault, foldr, foldrDefault)
 import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
@@ -250,6 +251,12 @@ foreign import intersectionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> 
 -- | `intersectionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 intersectionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
 intersectionWith = intersectionWithPurs eq hash
+
+-- | Compute the difference of two maps, that is a new map of all the
+-- | mappings in the left map that do not have a corresponding key in
+-- | the right map.
+difference :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
+difference l r = foldr delete l (keys r)
 
 -- | Remove duplicates from an array.
 -- |

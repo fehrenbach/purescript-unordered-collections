@@ -8,8 +8,8 @@ import Prelude
 
 import Data.Array as A
 import Data.Array as Array
-import Data.Foldable (foldMap, foldr)
-import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex)
+import Data.Foldable (all, foldMap, foldl, foldr)
+import Data.FoldableWithIndex (allWithIndex, foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.HashSet as HS
@@ -18,7 +18,7 @@ import Data.List (List(..))
 import Data.Map as OM
 import Data.Maybe (Maybe(..), maybe)
 import Data.Monoid.Additive (Additive(..))
-import Data.Newtype (alaF)
+import Data.Newtype (ala, alaF)
 import Data.NonEmpty ((:|))
 import Data.Set as OS
 import Data.Traversable (sequence, traverse)
@@ -176,12 +176,20 @@ main = do
     Array.sort (HM.toArrayBy Tuple (HM.unionWith f (HM.fromFoldable a) (HM.fromFoldable b))) ===
     Array.sort (OM.toUnfoldable (OM.unionWith f (OM.fromFoldable a) (OM.fromFoldable b)))
 
-
   log "unionWith const = union"
   quickCheck $ \(a :: Array (Tuple CollidingInt String)) b ->
     let m = arbitraryHM a
         n = arbitraryHM b
     in HM.union m n  === HM.unionWith const m n
+
+  log "map difference"
+  quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) ->
+    let ma = HM.fromFoldable a
+        mb = HM.fromFoldable b
+        md = HM.difference ma mb
+    in allWithIndex (\k v -> HM.lookup k ma == Just v) md &&
+       allWithIndex (\k _ -> not $ HM.member k md) mb
+       <?> ("ma: " <> show ma <> "\nmb: " <> show mb <> "\nmd: " <> show md)
 
   log "map id = id"
   quickCheck \ (a :: Array (Tuple CollidingInt Boolean)) ->
@@ -305,6 +313,23 @@ main = do
         b = HS.fromFoldable b'
         c = HS.fromFoldable c'
     in a `HS.intersection` (b `HS.union` c) === (a `HS.intersection` b) `HS.union` (a `HS.intersection` c)
+
+  log "set foldable agrees with ordered set for (+)"
+  quickCheck \(a :: Array Int) (b :: Int) ->
+    let ha = HS.fromFoldable a
+        oa = OS.fromFoldable a
+    in foldl (+) b ha == foldl (+) b oa &&
+       foldr (+) b ha == foldr (+) b oa &&
+       ala Additive foldMap ha == ala Additive foldMap oa
+
+  log "set difference"
+  quickCheck' 100000 $ \(a :: Array CollidingInt) (b :: Array CollidingInt) ->
+    let ma = HS.fromFoldable a
+        mb = HS.fromFoldable b
+        md = HS.difference ma mb
+    in all (\k -> HS.member k ma) md &&
+       all (\k -> not $ HS.member k md) mb
+       <?> ("ma: " <> show ma <> "\nmb: " <> show mb <> "\nmd: " <> show md)
 
   log "Array nub"
   quickCheck' 1000 $ \ (a :: Array CollidingInt) ->
