@@ -6,10 +6,12 @@ module Bench.Main where
 
 import Prelude
 
+import Control.Monad.ST (run)
 import Data.Array (range)
 import Data.Array as Array
+import Data.Array.ST as STA
 import Data.Foldable (foldMap, foldl, foldr)
-import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex)
+import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex, forWithIndex_)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.HashSet as HS
@@ -20,10 +22,18 @@ import Data.Map as OM
 import Data.Maybe (Maybe(..))
 import Data.Set as OS
 import Data.Traversable (sequence)
+import Data.TraversableWithIndex (class TraversableWithIndex)
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Performance.Minibench (bench, benchWith)
+
+-- adapted from https://github.com/purescript/purescript-ordered-collections/issues/9#issuecomment-423238887
+traversableWithIndexToArray :: forall a b i f. TraversableWithIndex i f => (i -> a -> b) -> f a -> Array b
+traversableWithIndexToArray f xs = run do
+  arr <- STA.empty
+  forWithIndex_ xs (\i a -> STA.push (f i a) arr)
+  STA.unsafeFreeze arr
 
 si :: Int -> Array (Tuple String Int)
 si n = map (\i -> Tuple (show i) i) $ range 1 n
@@ -143,6 +153,12 @@ main = do
 
   log "HM to array using foldMapWithIndex"
   bench \_ -> foldMapWithIndex (\k v -> Array.singleton (Tuple k v)) hmSi100
+
+  log "HM to array using traversableWithIndexToArray"
+  bench \_ -> traversableWithIndexToArray Tuple hmSi100
+
+  log "OM to array using traversableWithIndexToArray"
+  bench \_ -> traversableWithIndexToArray Tuple omSi100
 
   log "OM.values (List)"
   bench \_ -> OM.values omSi100 :: List Int
