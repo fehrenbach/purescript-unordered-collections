@@ -255,7 +255,7 @@ intersectionWith = intersectionWithPurs eq hash
 -- | Compute the difference of two maps, that is a new map of all the
 -- | mappings in the left map that do not have a corresponding key in
 -- | the right map.
-difference :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
+difference :: forall k v w. Hashable k => HashMap k v -> HashMap k w -> HashMap k v
 difference l r = foldr delete l (keys r)
 
 -- | Remove duplicates from an array.
