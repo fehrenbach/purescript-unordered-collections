@@ -201,14 +201,14 @@ main = do
   log "HM difference 100 10000"
   bench \_ -> HM.difference hmIs100 hmIs10000
 
-  -- log "OM difference 100 10000"
-  -- bench \_ -> OM.difference omIs100 omIs10000
+  log "OM difference 100 10000"
+  bench \_ -> OM.difference omIs100 omIs10000
 
   log "HM difference 10000 100"
   bench \_ -> HM.difference hmIs10000 hmIs100
 
-  -- log "OM difference 10000 100"
-  -- bench \_ -> OM.difference omIs10000 omIs100
+  log "OM difference 10000 100"
+  bench \_ -> OM.difference omIs10000 omIs100
 
   log ""
   log "Nub"
