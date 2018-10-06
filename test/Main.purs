@@ -157,7 +157,7 @@ main = do
          "\nhmab: " <> show (HM.fromFoldable (a <> b)))
 
   log "union = repeated insertion"
-  quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt String)) b ->
+  quickCheck $ \(a :: Array (Tuple CollidingInt String)) b ->
     let m = arbitraryHM a
         n = arbitraryHM b
     in HM.union m n  === foldrWithIndex HM.insert n m
@@ -165,6 +165,20 @@ main = do
     let m = arbitraryHM a
         n = arbitraryHM b
     in HM.union n m === foldlWithIndex (\k m' v -> HM.insert k v m') m n
+
+  log "filterWithKey agrees with OrdMap"
+  quickCheck' 10000 $ \(a :: Array (Tuple Int Int)) f ->
+    Array.sort (HM.toArrayBy Tuple (HM.filterWithKey f (HM.fromFoldable a))) ==
+    Array.sort (OM.toUnfoldable (OM.filterWithKey f (OM.fromFoldable a)))
+    <?> (  "        a: " <> show a <>
+         "\n dbg befo: " <> show (HM.debugShow (HM.fromFoldable a)) <>
+         "\n dbg afte: " <> show (HM.debugShow (HM.filterWithKey f (HM.fromFoldable a))) <>
+         "\n filtered: " <> show (Array.sort (HM.toArrayBy Tuple (HM.filterWithKey f (HM.fromFoldable a)))) <>
+         "\n shouldbe: " <> show (Array.sort (OM.toUnfoldable (OM.filterWithKey f (OM.fromFoldable a)))))
+
+  log "filter empty"
+  quickCheck \(a :: Array (Tuple CollidingInt Int)) ->
+    HM.empty === HM.filter (const false) (HM.fromFoldable a)
 
   log "unionWith agrees with OrdMap"
   quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) c f ->

@@ -12,6 +12,8 @@ module Data.HashSet (
   member,
   delete,
 
+  filter,
+
   union,
   intersection,
   difference,
@@ -77,6 +79,13 @@ fromFoldable = foldr insert empty
 -- | `Data.HashMap` instead of `toArray <<< fromFoldable`.
 toArray :: forall a. HashSet a -> Array a
 toArray (HashSet m) = M.keys m
+
+-- | Remove all elements from the set for which the predicate does not
+-- | hold.
+-- |
+-- | `filter (const false) s == empty`
+filter :: forall a. (a -> Boolean) -> HashSet a -> HashSet a
+filter f (HashSet m) = HashSet (M.filterWithKey (\k v -> f k) m)
 
 -- | Union two sets.
 union :: forall a. Hashable a => HashSet a -> HashSet a -> HashSet a

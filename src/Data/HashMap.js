@@ -335,10 +335,40 @@ MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
     return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
 }
 
+MapNode.prototype.filterWithKey = function filterWithKey(f) {
+    var datamap = 0;
+    var nodemap = 0;
+    var data = [];
+    var nodes = [];
+    for (var i = 0; i < 32; i++) {
+        var bit = 1 << i;
+        if ((this.datamap & bit) !== 0) {
+            var dataIndex = index(this.datamap, bit);
+            var k = this.content[dataIndex * 2];
+            var v = this.content[dataIndex * 2 + 1];
+            if (f(k)(v)) {
+                datamap |= bit;
+                data.push(k, v);
+            }
+        } else if ((this.nodemap & bit) !== 0) {
+            var nodeIndex = index(this.nodemap, bit);
+            var node = this.content[this.content.length - nodeIndex - 1].filterWithKey(f);
+            if (isEmpty(node)) continue;
+            if (node.isSingleton()) {
+                datamap |= bit;
+                data.push(node.content[0], node.content[1]);
+            } else {
+                nodemap |= bit;
+                nodes.push(node);
+            }
+        }
+    }
+    return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
+}
 
-// This builds an n-ary curried function that all values and all
+// This builds an n-ary curried function that takes all values and all
 // subnodes as arguments and places them in a copy of the hashmap
-// preserving the keys, datamap, and nodemap.  Basically, a (Hashmap k
+// preserving the keys, datamap, and nodemap. Basically, a (Hashmap k
 // v) with s key-value pairs and t nodes turns into a function:
 //
 // k_0 -> .. -> k_s -> HashMap_0 k v -> .. -> HashMap_t k v -> HashMap k v
@@ -573,6 +603,26 @@ Collision.prototype.intersectionWith = function (eq, hash, f, that, shift) {
     return new Collision(keys, values);
 }
 
+Collision.prototype.filterWithKey = function collisionFilterWithKey(f) {
+    var keys = [];
+    var values = [];
+    for (var i = 0; i < this.keys.length; i++) {
+        var k = this.keys[i];
+        var v = this.values[i];
+        if (f(k)(v)) {
+            keys.push(k);
+            values.push(v);
+        }
+    }
+    if (keys.length === 0) return empty;
+    // This is a bit dodgy. We return a fake MapNode (wrong datamap
+    // (WHICH CANNOT BE 0, OTHERWISE isEmpty THINKS IT'S EMPTY!) and
+    // nodemap), but it's okay, because we will immediately
+    // deconstruct it in MapNode's filterWithKey.
+    if (keys.length === 1) return new MapNode(1, 0, [keys[0], values[0]]);
+    return new Collision(keys, values);
+}
+
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
 }
@@ -796,6 +846,12 @@ exports.traverseWithIndexPurs = function (pure) {
 exports.hashPurs = function (vhash) {
     return function (m) {
         return m.hash(vhash);
+    };
+};
+
+exports.filterWithKey = function (f) {
+    return function (m) {
+        return m.filterWithKey(f);
     };
 };
 

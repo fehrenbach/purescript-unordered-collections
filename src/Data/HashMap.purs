@@ -20,6 +20,10 @@ module Data.HashMap (
   update,
   alter,
 
+  filter,
+  filterWithKey,
+  filterKeys,
+
   fromFoldable,
   fromFoldableBy,
   toArrayBy,
@@ -257,6 +261,31 @@ intersectionWith = intersectionWithPurs eq hash
 -- | the right map.
 difference :: forall k v w. Hashable k => HashMap k v -> HashMap k w -> HashMap k v
 difference l r = foldr delete l (keys r)
+
+-- | Remove key-value-pairs from a map for which the predicate does
+-- | not hold.
+-- |
+-- | ```PureScript
+-- | filter (const False) m == empty
+-- | filter (const True) m == m
+-- | ```
+filter :: forall k v. Hashable k => (v -> Boolean) -> HashMap k v -> HashMap k v
+filter f = filterWithKey (const f)
+
+-- | Remove key-value-pairs from a map for which the predicate does
+-- | not hold.
+-- |
+-- | Like `filter`, but the predicate takes both key and value.
+foreign import filterWithKey :: forall k v. (k -> v -> Boolean) -> HashMap k v -> HashMap k v
+
+-- | Remove all keys from the map for which the predicate does not
+-- | hold.
+-- |
+-- | `difference m1 m2 == filterKeys (\k -> member k m2) m1`
+filterKeys :: forall k v. Hashable k => (k -> Boolean) -> HashMap k v -> HashMap k v
+filterKeys f = filterWithKey (\k v -> f k)
+
+
 
 -- | Remove duplicates from an array.
 -- |

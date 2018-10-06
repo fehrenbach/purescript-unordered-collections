@@ -11,7 +11,7 @@ import Data.Array (range)
 import Data.Array as Array
 import Data.Array.ST as STA
 import Data.Foldable (foldMap, foldl, foldr)
-import Data.FoldableWithIndex (foldMapWithIndex, foldrWithIndex, forWithIndex_)
+import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex, forWithIndex_)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.HashSet as HS
@@ -49,16 +49,21 @@ insertOM a = OM.fromFoldable a
 
 main :: Effect Unit
 main = do
+  let is100 = is 100
+  let hmIs100 = insertHM is100
+  let omIs100 = insertOM is100
+  let iKeys100 = range 1 100
+
   let is10000 = is 10000
   let is20000 = is 10000 <> is 10000
   let iKeys10000 = range 1 10000
   let hmIs10000 = insertHM is10000
   let omIs10000 = insertOM is10000
 
-  let is100 = is 100
-  let hmIs100 = insertHM is100
-  let omIs100 = insertOM is100
-  let iKeys100 = range 1 100
+  -- string keys
+  let si10000 = si 10000
+  let hmSi10000 = insertHM si10000
+  let omSi10000 = insertOM si10000
 
   log "HM singleton"
   benchWith 1000000 \_ -> HM.singleton 5 42
@@ -184,6 +189,29 @@ main = do
 
   log "OM map Just and sequence 10000"
   bench \_ -> sequence $ Just <$> omIs10000
+
+
+  log ""
+  log "Filtering"
+  log "---------"
+
+  log "HM filterWithKey key even"
+  bench \_ -> HM.filterWithKey (\k v -> k `mod` 2 == 0) hmIs10000
+
+  log "HM filterWithKey (naive) key even"
+  bench \_ -> (\f -> foldlWithIndex (\k m v -> if f k v then HM.insert k v m else m) HM.empty) (\k v -> k `mod` 2 == 0) hmIs10000
+
+  log "OM filterWithKey key even"
+  bench \_ -> OM.filterWithKey (\k v -> k `mod` 2 == 0) omIs10000
+
+  log "HM filterWithKey value even"
+  bench \_ -> HM.filterWithKey (\k v -> v `mod` 2 == 0) hmSi10000
+
+  log "HM filterWithKey (naive) value even"
+  bench \_ -> (\f -> foldlWithIndex (\k m v -> if f k v then HM.insert k v m else m) HM.empty) (\k v -> v `mod` 2 == 0) hmSi10000
+
+  log "OM filterWithKey value even"
+  bench \_ -> OM.filterWithKey (\k v -> v `mod` 2 == 0) omSi10000
 
   log ""
   log "UnionWith"
