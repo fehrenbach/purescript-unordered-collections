@@ -163,173 +163,195 @@ MapNode.prototype.ifoldMap = function (m, mappend, f) {
     return m;
 }
 
-MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
-    if (this.constructor === that.constructor) {
-        var datamap = 0;
-        var nodemap = 0;
-        var data = [];
-        var nodes = [];
-        var skipmap = this.datamap | this.nodemap | that.datamap | that.nodemap;
-        // This goes through the 32 bits in the resulting
-        // (data|node)maps one by one. It's not pretty, but it allows
-        // us to handle the 9 cases (in/notin + left/right + data/node)
-        // fairly uniformly. I'd like to use bitops to calculate the
-        // maps, but sometimes we move stuff from the datamaps to the
-        // nodemap, which makes that difficult.
-        for (var i = 0; i < 32; i++) {
-            var bit = 1 << i;
-            if ((skipmap & bit) === 0) continue;
-            var thisDataIndex = index(this.datamap, bit);
-            var thatDataIndex = index(that.datamap, bit);
-            var thisNodeIndex = index(this.nodemap, bit);
-            var thatNodeIndex = index(that.nodemap, bit);
-            if ((this.datamap & bit) !== 0) {
-                if ((that.datamap & bit) !== 0) {
-                    // in both data => combine or merge into node
-                    if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
-                        // equal, merge with f
-                        datamap |= bit;
-                        data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
-                    } else {
-                        // key hashes equal at this level, merge into node
-                        nodemap |= bit;
-                        nodes.push(binaryNode(
-                            this.content[thisDataIndex * 2],
-                            hash(this.content[thisDataIndex * 2]),
-                            this.content[thisDataIndex*2+1],
-                            that.content[thatDataIndex * 2],
-                            hash(that.content[thatDataIndex * 2]),
-                            that.content[thatDataIndex*2+1],
-                            shift + 5));
-                    }
-                } else {
-                    if ((that.nodemap & bit) !== 0) {
-                        // merge thisData into thatNode
-                        // This sucks a bit because we don't have insertWith
-                        var k = this.content[thisDataIndex * 2];
-                        var hk = hash(k);
-                        var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-                        nodemap |= bit;
-                        nodes.push(
-                            that.content[that.content.length - thatNodeIndex - 1]
-                                .insert(eq, hash, k, hk,
-                                        (res === Data_Maybe.Nothing.value) ? this.content[thisDataIndex * 2 + 1] : f(this.content[thisDataIndex * 2 + 1])(res.value0),
-                                        shift + 5));
-                    } else {
-                        // add thisData
-                        datamap |= bit;
-                        data.push(this.content[thisDataIndex * 2], this.content[thisDataIndex * 2 + 1]);
-                    }
-                }
-            }
-            else {
-                if ((this.nodemap & bit) !== 0) {
-                    if ((that.datamap & bit) !== 0) {
-                        // merge thatData into thisNode
-                        // This sucks a bit because we don't have insertWith
-                        var k = that.content[thatDataIndex * 2];
-                        var hk = hash(k);
-                        var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-                        nodemap |= bit;
-                        nodes.push(
-                            this.content[this.content.length - thisNodeIndex - 1]
-                                .insert(eq, hash, k, hk,
-                                        (res === Data_Maybe.Nothing.value) ? that.content[thatDataIndex * 2 + 1] : f(res.value0)(that.content[thatDataIndex * 2 + 1]),
-                                        shift + 5));
-                    } else {
-                        if ((that.nodemap & bit) !== 0) {
-                            // recursively merge nodes
-                            nodemap |= bit;
-                            nodes.push(
-                                this.content[this.content.length - thisNodeIndex - 1].unionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5));
-                        } else {
-                            // add this node
-                            nodemap |= bit;
-                            nodes.push(this.content[this.content.length - thisNodeIndex - 1]);
-                        }
-                    }
-                } else {
-                    if ((that.datamap & bit) !== 0) {
-                        // add that data
-                        datamap |= bit;
-                        data.push(that.content[thatDataIndex * 2], that.content[thatDataIndex * 2 + 1]);
-                    } else {
-                        if ((that.nodemap & bit) !== 0) {
-                            // add that node
-                            nodemap |= bit;
-                            nodes.push(that.content[that.content.length - thatNodeIndex - 1]);
-                        } else {
-                            // not anywhere
-                            // do nothing
-                            // this is unreachable because we skip these bits early
-                        }
-                    }
-                }
-            }
-        }
-        return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
-    }
-    throw "Trying to union a MapNode with something else";
+function lowestBit(n) { return n & -n; }
+
+function mergeState(bit, thisnode, thisdata, thatnode, thatdata) {
+    /* Returns one of these constants:
+
+       const NONE_NONE = 0;
+       const NODE_NONE = 1;
+       const DATA_NONE = 2;
+       const NONE_NODE = 4;
+       const NONE_DATA = 8;
+       const DATA_NODE = DATA_NONE | NONE_NODE;
+       const NODE_DATA = NODE_NONE | NONE_DATA;
+       const DATA_DATA = DATA_NONE | NONE_DATA;
+       const NODE_NODE = NODE_NONE | NONE_NODE;
+
+       I would love to declare them in the file, but purs compile
+       complains about `const` and purs bundle removes variables.
+    */
+
+    var state = 0;
+    state |= (bit & thisnode) !== 0 ? 1 : 0;
+    state |= (bit & thisdata) !== 0 ? 2 : 0;
+    state |= (bit & thatnode) !== 0 ? 4 : 0;
+    state |= (bit & thatdata) !== 0 ? 8 : 0;
+    return state;
 }
 
-MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
+    if (this.constructor !== that.constructor)
+        throw "Trying to union a MapNode with something else";
+
+    // I'd rather declare these locally in the branches, but purs
+    // compile complains about `const`.
+    var thisDataIndex, thatDataIndex, thisNodeIndex, thatNodeIndex;
+
     var datamap = 0;
     var nodemap = 0;
     var data = [];
     var nodes = [];
+
+    // Conceptually, we go through all of the 32 bits in the result
+    // and then handle the (in/notin + left/right + data/node)
+    // combinations. With this clever trick, we get to skip the 0 bits.
+    var skipmap = this.datamap | this.nodemap | that.datamap | that.nodemap;
+    while (skipmap !== 0) {
+        var bit = lowestBit(skipmap);
+        skipmap &= ~bit;
+
+        switch (mergeState(bit, this.nodemap, this.datamap, that.nodemap, that.datamap)) {
+        case 1 /* NODE_NONE */:
+            thisNodeIndex = index(this.nodemap, bit);
+            nodemap |= bit;
+            nodes.push(this.content[this.content.length - thisNodeIndex - 1]);
+            break;
+        case 2 /* DATA_NONE */:
+            thisDataIndex = index(this.datamap, bit);
+            datamap |= bit;
+            data.push(this.content[thisDataIndex * 2], this.content[thisDataIndex * 2 + 1]);
+            break;
+        case 4 /* NONE_NODE */:
+            thatNodeIndex = index(that.nodemap, bit);
+            nodemap |= bit;
+            nodes.push(that.content[that.content.length - thatNodeIndex - 1]);
+            break;
+        case 5 /* NODE_NODE */:
+            thisNodeIndex = index(this.nodemap, bit);
+            thatNodeIndex = index(that.nodemap, bit);
+            nodemap |= bit;
+            nodes.push(
+                this.content[this.content.length - thisNodeIndex - 1]
+                    .unionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5));
+            break;
+        case 6 /* DATA_NODE */:
+            thisDataIndex = index(this.datamap, bit);
+            thatNodeIndex = index(that.nodemap, bit);
+            var k = this.content[thisDataIndex * 2];
+            var v = this.content[thisDataIndex * 2 + 1];
+            var hk = hash(k);
+            var flippedF = function (a) { return function (b) { return f(b)(a); }; };
+            nodemap |= bit;
+            nodes.push(that.content[that.content.length - thatNodeIndex - 1].insertWith(eq, hash, flippedF, k, hk, v, shift + 5));
+            break;
+        case 8 /* NONE_DATA */:
+            thatDataIndex = index(that.datamap, bit);
+            datamap |= bit;
+            data.push(that.content[thatDataIndex * 2], that.content[thatDataIndex * 2 + 1]);
+            break;
+        case 9 /* NODE_DATA */:
+            thatDataIndex = index(that.datamap, bit);
+            thisNodeIndex = index(this.nodemap, bit);
+            var k = that.content[thatDataIndex * 2];
+            var v = that.content[thatDataIndex * 2 + 1];
+            var hk = hash(k);
+            nodemap |= bit;
+            nodes.push(this.content[this.content.length - thisNodeIndex - 1].insertWith(eq, hash, f, k, hk, v, shift + 5));
+            break;
+        case 10 /* DATA_DATA */:
+            thisDataIndex = index(this.datamap, bit);
+            thatDataIndex = index(that.datamap, bit);
+            if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
+                // equal, merge with f
+                datamap |= bit;
+                data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
+            } else {
+                // key hashes equal at this level, merge into node
+                nodemap |= bit;
+                nodes.push(binaryNode(
+                    this.content[thisDataIndex * 2],
+                    hash(this.content[thisDataIndex * 2]),
+                    this.content[thisDataIndex*2+1],
+                    that.content[thatDataIndex * 2],
+                    hash(that.content[thatDataIndex * 2]),
+                    that.content[thatDataIndex*2+1],
+                    shift + 5));
+            }
+            break;
+        }
+    }
+    return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
+}
+
+MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+    if (this.constructor !== that.constructor)
+        throw "Trying to intersect a MapNode with something else";
+
+    // I'd rather declare these locally in the branches, but purs
+    // compile complains about `const`.
+    var thisDataIndex, thatDataIndex, thisNodeIndex, thatNodeIndex;
+
+    var datamap = 0;
+    var nodemap = 0;
+    var data = [];
+    var nodes = [];
+
+    // Conceptually, we go through all of the 32 bits in the result
+    // and then handle the (in/notin + left/right + data/node)
+    // combinations. With this clever trick, we get to skip the 0 bits.
     var skipmap = (this.datamap | this.nodemap) & (that.datamap | that.nodemap);
-    // This goes through the 32 bits in the resulting (data|node)maps
-    // one by one. I'd like to use bitops to calculate the maps, but
-    // sometimes we move stuff from the nodemap into the datamap, and
-    // sometimes hashes collide, which makes that difficult.
-    for (var i = 0; i < 32; i++) {
-        var bit = 1 << i;
-        if ((skipmap & bit) === 0) continue;
+    while (skipmap !== 0) {
+        var bit = lowestBit(skipmap);
+        skipmap &= ~bit;
 
-        var inThisData = (this.datamap & bit) !== 0;
-        var inThatData = (that.datamap & bit) !== 0;
-
-        if (inThisData) {
-            var thisDataIndex = index(this.datamap, bit);
-            if (inThatData) {
-                var thatDataIndex = index(that.datamap, bit);
-                if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
-                    datamap |= bit;
-                    data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
-                }
+        switch (mergeState(bit, this.nodemap, this.datamap, that.nodemap, that.datamap)) {
+        case 5 /* NODE_NODE */:
+            thisNodeIndex = index(this.nodemap, bit);
+            thatNodeIndex = index(that.nodemap, bit);
+            var recRes = this.content[this.content.length - thisNodeIndex - 1]
+                .intersectionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
+            if (isEmpty(recRes)) continue;
+            if (recRes.isSingleton()) {
+                datamap |= bit;
+                data.push(recRes.content[0], recRes.content[1]);
             } else {
-                var thatNodeIndex = index(that.nodemap, bit);
-                var k = this.content[thisDataIndex * 2];
-                var hk = hash(k);
-                var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-                if (res !== Data_Maybe.Nothing.value) {
-                    datamap |= bit;
-                    data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(res.value0));
-                }
+                nodemap |= bit;
+                nodes.push(recRes);
             }
-        } else {
-            var thisNodeIndex = index(this.nodemap, bit);
-            if (inThatData) {
-                var thatDataIndex = index(that.datamap, bit);
-                var k = that.content[thatDataIndex * 2];
-                var hk = hash(k);
-                var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-                if (res !== Data_Maybe.Nothing.value) {
-                    datamap |= bit;
-                    data.push(that.content[thatDataIndex * 2], f(res.value0)(that.content[thatDataIndex * 2 + 1]));
-                }
-            } else {
-                var thatNodeIndex = index(that.nodemap, bit);
-                var recRes = this.content[this.content.length - thisNodeIndex - 1].intersectionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
-                if (isEmpty(recRes)) continue;
-                if (recRes.isSingleton()) {
-                    datamap |= bit;
-                    data.push(recRes.content[0], recRes.content[1]);
-                } else {
-                    nodemap |= bit;
-                    nodes.push(recRes);
-                }
+            break;
+        case 6 /* DATA_NODE */:
+            thisDataIndex = index(this.datamap, bit);
+            thatNodeIndex = index(that.nodemap, bit);
+            var k = this.content[thisDataIndex * 2];
+            var v = this.content[thisDataIndex * 2 + 1];
+            var hk = hash(k);
+            var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+            if (res !== Data_Maybe.Nothing.value) {
+                datamap |= bit;
+                data.push(k, f(v)(res.value0));
             }
+            break;
+        case 9 /* NODE_DATA */:
+            thatDataIndex = index(that.datamap, bit);
+            thisNodeIndex = index(this.nodemap, bit);
+            var k = that.content[thatDataIndex * 2];
+            var v = that.content[thatDataIndex * 2 + 1];
+            var hk = hash(k);
+            var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
+            if (res !== Data_Maybe.Nothing.value) {
+                datamap |= bit;
+                data.push(k, f(res.value0)(v));
+            }
+            break;
+        case 10 /* DATA_DATA */:
+            thisDataIndex = index(this.datamap, bit);
+            thatDataIndex = index(that.datamap, bit);
+            if (eq(this.content[thisDataIndex * 2])(that.content[thatDataIndex * 2])) {
+                datamap |= bit;
+                data.push(this.content[thisDataIndex * 2], f(this.content[thisDataIndex * 2 + 1])(that.content[thatDataIndex * 2 + 1]));
+            }
+            break;
         }
     }
     return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));

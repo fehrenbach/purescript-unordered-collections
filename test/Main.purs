@@ -185,6 +185,10 @@ main = do
     Array.sort (HM.toArrayBy Tuple (HM.unionWith f (HM.fromFoldable (a <> c)) (HM.fromFoldable (b <> map (map (_ + 1)) c)))) ===
     Array.sort (OM.toUnfoldable (OM.unionWith f (OM.fromFoldable (a <> c)) (OM.fromFoldable (b <> map (map (_ + 1)) c))))
 
+  quickCheckWithSeed (mkSeed 143037645) 1 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) c f ->
+    Array.sort (HM.toArrayBy Tuple (HM.unionWith f (HM.fromFoldable (a <> c)) (HM.fromFoldable (b <> map (map (_ + 1)) c)))) ===
+    Array.sort (OM.toUnfoldable (OM.unionWith f (OM.fromFoldable (a <> c)) (OM.fromFoldable (b <> map (map (_ + 1)) c))))
+
   log "unionWith agrees with OrdMap 2"
   quickCheck' 10000 $ \(a :: Array (Tuple Boolean Int)) (b :: Array (Tuple Boolean Int)) f ->
     Array.sort (HM.toArrayBy Tuple (HM.unionWith f (HM.fromFoldable a) (HM.fromFoldable b))) ===
@@ -195,6 +199,23 @@ main = do
     let m = arbitraryHM a
         n = arbitraryHM b
     in HM.union m n  === HM.unionWith const m n
+
+  -- OrdMap does not have intersectionWith :/
+
+  -- log "intersectionWith agrees with OrdMap"
+  -- quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) c f ->
+    -- Array.sort (HM.toArrayBy Tuple (HM.intersectionWith f (HM.fromFoldable (a <> c)) (HM.fromFoldable (b <> map (map (_ + 1)) c)))) ===
+    -- Array.sort (OM.toUnfoldable (OM.intersectionWith f (OM.fromFoldable (a <> c)) (OM.fromFoldable (b <> map (map (_ + 1)) c))))
+
+  -- quickCheckWithSeed (mkSeed 143037645) 1 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) c f ->
+    -- Array.sort (HM.toArrayBy Tuple (HM.intersectionWith f (HM.fromFoldable (a <> c)) (HM.fromFoldable (b <> map (map (_ + 1)) c)))) ===
+    -- Array.sort (OM.toUnfoldable (OM.intersectionWith f (OM.fromFoldable (a <> c)) (OM.fromFoldable (b <> map (map (_ + 1)) c))))
+
+  -- log "intersectionWith agrees with OrdMap 2"
+  -- quickCheck' 10000 $ \(a :: Array (Tuple Boolean Int)) (b :: Array (Tuple Boolean Int)) f ->
+    -- Array.sort (HM.toArrayBy Tuple (HM.intersectionWith f (HM.fromFoldable a) (HM.fromFoldable b))) ===
+    -- Array.sort (OM.toUnfoldable (OM.intersectionWith f (OM.fromFoldable a) (OM.fromFoldable b)))
+
 
   log "map difference"
   quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) ->
@@ -255,6 +276,9 @@ main = do
 
   log "intersection = fromFoldable OS.intersection"
   quickCheck' 100000 $ \(a :: Array (Tuple CollidingInt String)) (b :: Array (Tuple CollidingInt String)) ->
+    HS.fromFoldable (OS.intersection (OS.fromFoldable a) (OS.fromFoldable b)) === HS.fromFoldable a `HS.intersection` HS.fromFoldable b
+
+  quickCheckWithSeed (mkSeed 1653221225) 1 $ \(a :: Array (Tuple CollidingInt String)) (b :: Array (Tuple CollidingInt String)) ->
     HS.fromFoldable (OS.intersection (OS.fromFoldable a) (OS.fromFoldable b)) === HS.fromFoldable a `HS.intersection` HS.fromFoldable b
 
   log "l `HS.union` r === r `HS.union` l"
