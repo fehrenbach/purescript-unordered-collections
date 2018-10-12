@@ -28,6 +28,7 @@ Related
 - [unordered-containers](http://hackage.haskell.org/package/unordered-containers): efficient hashing-based container types in Haskell
 - [immutable.js](https://facebook.github.io/immutable-js/): immutable collections for JavaScript and TypeScript
 - [io.lacuna.bifurcan](https://github.com/lacuna/bifurcan): high-quality Java implementations of mutable and immutable data structures
+- [im-rs](http://immutable.rs): blazing fast immutable collection datatypes for Rust
 
 Documentation
 -------------
