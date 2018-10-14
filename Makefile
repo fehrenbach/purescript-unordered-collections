@@ -11,10 +11,10 @@ output/Bench.Main/index.js: $(SOURCES) $(BENCH_SOURCES) $(BOWER_SOURCES)
 	purs compile 'bench/**/*.purs' 'src/**/*.purs' 'bower_components/*/src/**/*.purs'
 
 bench: output/Bench.Main/index.js
-	node -e 'require("./output/Bench.Main/index.js").main()'
+	node --expose-gc -e 'require("./output/Bench.Main/index.js").main()'
 
 bench-trace: output/Bench.Main/index.js
-	node --trace-opt --trace-deopt -e  'require("./output/Bench.Main/index.js").main()'
+	node --expose-gc --trace-opt --trace-deopt --print-opt-code --code-comments -e  'require("./output/Bench.Main/index.js").main()'
 
 compile: $(SOURCES) $(BOWER_SOURCES)
 	purs compile 'src/**/*.purs' 'bower_components/*/src/**/*.purs'

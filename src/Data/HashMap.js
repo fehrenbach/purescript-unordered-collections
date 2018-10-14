@@ -32,6 +32,35 @@ MapNode.prototype.lookup = function lookup(keyEquals, key, keyHash, shift) {
     return Data_Maybe.Nothing.value;
 }
 
+function remove2insert1Mut(a, removeIndex, insertIndex, v1) {
+    for (var i = removeIndex; i < insertIndex; i++) a[i] = a[i+2];
+    a[i++] = v1;
+    for (; i < a.length - 1; i++) a[i] = a[i+1];
+    a.length = a.length - 1;
+}
+
+MapNode.prototype.insertMut = function insertMut(keyEquals, hashFunction, key, keyHash, value, shift) {
+    var bit = mask(keyHash, shift);
+    var i = index(this.datamap, bit);
+    if ((this.datamap & bit) !== 0) {
+        var k = this.content[i * 2];
+        if (keyEquals(k)(key)) {
+            this.content[i*2+1] = value;
+        } else {
+            var newNode = binaryNode(k, hashFunction(k), this.content[i*2+1], key, keyHash, value, shift + 5);
+            this.datamap = this.datamap ^ bit;
+            this.nodemap = this.nodemap | bit;
+            remove2insert1Mut(this.content, i*2, this.content.length - index(this.nodemap, bit) - 2, newNode);
+        }
+    } else if ((this.nodemap & bit) !== 0) {
+        var n = this.content.length - 1 - index(this.nodemap, bit);
+        this.content[n].insertMut(keyEquals, hashFunction, key, keyHash, value, shift + 5);
+    } else {
+        this.datamap = this.datamap | bit;
+        this.content.splice(i*2, 0, key, value);
+    }
+}
+
 MapNode.prototype.insert = function insert(keyEquals, hashFunction, key, keyHash, value, shift) {
     var bit = mask(keyHash, shift);
     var i = index(this.datamap, bit);
@@ -475,6 +504,16 @@ Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, k
                          copyAndOverwriteOrExtend1(this.values, i, value));
 };
 
+Collision.prototype.insertMut = function collisionInsertMut(keyEquals, hashFunction, key, keyHash, value, shift) {
+    var i = 0;
+    for (; i < this.keys.length; i++)
+        if (keyEquals(key)(this.keys[i]))
+            break;
+    // i may be *after* the last element, if the key is not already in the map
+    this.keys[i] = key;
+    this.values[i] = value;
+};
+
 Collision.prototype.insertWith = function collisionInsert(keyEquals, hashFunction, f, key, keyHash, value, shift) {
     var i = 0;
     for (; i < this.keys.length; i++)
@@ -741,6 +780,24 @@ exports.lookupPurs = function (keyEquals) {
     };
 };
 
+exports.fromArrayPurs = function (keyEquals) {
+    return function (hashFunction) {
+        return function (kf) {
+            return function (vf) {
+                return function (a) {
+                    var m = new MapNode(0,0,[]);
+                    for (var i = 0; i < a.length; i++) {
+                        var x = a[i];
+                        var k = kf(x);
+                        m.insertMut(keyEquals, hashFunction, k, hashFunction(k), vf(x), 0);
+                    }
+                    return m;
+                };
+            };
+        };
+    };
+};
+
 exports.insertPurs = function (keyEquals) {
     return function (hashFunction) {
         return function (key) {
@@ -877,18 +934,17 @@ exports.filterWithKey = function (f) {
     };
 };
 
-// TODO ideally this would use a mutable HashSet instead
 exports.nubHashPurs = function (eq) {
     return function (hash) {
         return function (a) {
-            var m = empty;
+            var m = new MapNode(0,0,[]);
             var r = [];
             for (var i = 0; i < a.length; i++) {
                 var x = a[i];
                 var hx = hash(x);
                 if (m.lookup(eq, x, hx, 0) !== Data_Maybe.Nothing.value)
                     continue;
-                m = m.insert(eq, hash, x, hx, null, 0);
+                m.insertMut(eq, hash, x, hx, null, 0);
                 r.push(x);
             }
             return r;

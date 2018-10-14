@@ -6,334 +6,162 @@ module Bench.Main where
 
 import Prelude
 
-import Control.Monad.ST (run)
-import Data.Array (range)
 import Data.Array as Array
-import Data.Array.ST as STA
-import Data.Foldable (foldMap, foldl, foldr)
-import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex, forWithIndex_)
-import Data.HashMap (HashMap)
 import Data.HashMap as HM
 import Data.HashSet as HS
-import Data.Hashable (class Hashable)
-import Data.List (List)
-import Data.Map (Map)
+import Data.Int (ceil, even, toNumber)
 import Data.Map as OM
-import Data.Maybe (Maybe(..))
 import Data.Set as OS
-import Data.Traversable (sequence)
-import Data.TraversableWithIndex (class TraversableWithIndex)
-import Data.Tuple (Tuple(..))
+import Data.Traversable (for)
+import Data.Tuple (fst, snd)
 import Effect (Effect)
 import Effect.Class.Console (log)
-import Performance.Minibench (bench, benchWith)
+import Performance.Minibench (benchWith', withUnits)
+import Test.QuickCheck (arbitrary)
+import Test.QuickCheck.Gen (Gen, randomSample')
+import Unsafe.Coerce (unsafeCoerce)
 
--- adapted from https://github.com/purescript/purescript-ordered-collections/issues/9#issuecomment-423238887
-traversableWithIndexToArray :: forall a b i f. TraversableWithIndex i f => (i -> a -> b) -> f a -> Array b
-traversableWithIndexToArray f xs = run do
-  arr <- STA.empty
-  forWithIndex_ xs (\i a -> STA.push (f i a) arr)
-  STA.unsafeFreeze arr
+foreign import data BF :: Type -> Type
 
-si :: Int -> Array (Tuple String Int)
-si n = map (\i -> Tuple (show i) i) $ range 1 n
+type BenchFun a = { name :: String, fun :: BF a }
 
-is :: Int -> Array (Tuple Int String)
-is n = map (\i -> Tuple i (show i)) $ range 1 n
+benchFun :: forall a b. String -> (a -> Unit -> b) -> BenchFun a
+benchFun name fun = { name, fun: unsafeCoerce fun }
 
-insertHM :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
-insertHM a = HM.fromFoldable a
+unBF :: forall a b. BF a -> (a -> Unit -> b)
+unBF = unsafeCoerce
 
-insertOM :: forall k v. Ord k => Array (Tuple k v) -> Map k v
-insertOM a = OM.fromFoldable a
+type Benchmark a = { description :: String
+                   , sizes :: Array Int
+                   , input :: Int -> Effect a
+                   , implementations :: Array (BenchFun a) }
+
+foreign import table :: forall a. a -> Effect Unit
+
+guesstimateRuns :: forall a. Int -> (Unit -> a) -> Effect Int
+guesstimateRuns patience f = go 1
+  where
+  precision = 100
+  goalNS = toNumber patience * 1e9 / toNumber precision
+  go :: Int -> Effect Int
+  go runs = do
+    { mean } <- benchWith' runs f
+    if (mean * toNumber runs >= goalNS)
+      then pure (runs * precision)
+      else go (ceil (goalNS / mean))
+
+runBenchmark :: forall a. Int -> Benchmark a -> Effect Unit
+runBenchmark patience { description, input, sizes, implementations } = do
+  log description
+  outer <- for sizes \size -> do
+    -- log $ "generate input at size " <> show size
+    i <- input size
+    inner <- for implementations \{name, fun} -> do
+      let f = unsafeCoerce fun i
+      -- log $ "estimate runtime for " <> name
+      runs <- guesstimateRuns patience f
+      -- log $ "run " <> show runs <> " iterations of " <> name
+      { mean, min, stdDev, max } <- benchWith' runs f
+      pure [{ size, name: name, mean, min, stdDev, max, runs }]
+    pure (join inner)
+  let t = map (\ { size, name, mean, min, stdDev, max, runs } ->
+                { size, name,
+                  min: withUnits min,
+                  mean: withUnits mean,
+                  max: withUnits max,
+                  stdDev: withUnits stdDev,
+                  runs })
+          (join outer)
+  -- log description
+  table t
+
+foreign import shuffle :: forall a. Array a -> Effect (Array a)
+
+randomNumbers :: Int -> Effect (Array Number)
+randomNumbers size = randomSample' size arbitrary
+
+randomCoordinates :: Int -> Effect (Array { x :: Number, y :: Number })
+randomCoordinates size = do xs <- randomNumbers size
+                            ys <- randomNumbers size
+                            pure (Array.zipWith (\x y -> {x, y}) xs ys)
 
 main :: Effect Unit
 main = do
-  let is100 = is 100
-  let hmIs100 = insertHM is100
-  let omIs100 = insertOM is100
-  let iKeys100 = range 1 100
-
-  let is10000 = is 10000
-  let is20000 = is 10000 <> is 10000
-  let iKeys10000 = range 1 10000
-  let hmIs10000 = insertHM is10000
-  let omIs10000 = insertOM is10000
-
-  -- string keys
-  let si10000 = si 10000
-  let hmSi10000 = insertHM si10000
-  let omSi10000 = insertOM si10000
-
-  log "HM singleton"
-  benchWith 1000000 \_ -> HM.singleton 5 42
-
-  log "OM singleton"
-  benchWith 1000000 \_ -> OM.singleton 5 42
-
-  log "HM insert 10000 distinct integers"
-  bench \_ -> insertHM is10000
-
-  log "OM insert 10000 distinct integers"
-  bench \_ -> insertOM is10000
-
-  log "HM insertWith (<>) (2x 10000 integers)"
-  bench \_ -> foldr (\(Tuple i x) -> HM.insertWith (<>) i x) HM.empty is20000
-
-  log "HM lookup all 10000 distinct integers"
-  bench \_ -> map (\i -> HM.lookup i hmIs10000) iKeys10000
-
-  log "OM lookup all 10000 distinct integers"
-  bench \_ -> map (\i -> OM.lookup i omIs10000) iKeys10000
-
-  log "HM insert 100 distinct integers"
-  bench \_ -> insertHM is100
-
-  log "OM insert 100 distinct integers"
-  bench \_ -> insertOM is100
-
-  log "HM lookup all 100 distinct integers"
-  bench \_ -> map (\i -> HM.lookup i hmIs100) iKeys100
-
-  log "OM lookup all 100 distinct integers"
-  bench \_ -> map (\i -> OM.lookup i omIs100) iKeys100
-
-  log "HM delete all 100 distinct keys"
-  bench \_ -> foldr (\i m -> HM.delete i m) hmIs100 iKeys100
-
-  log "OM delete all 100 distinct keys"
-  bench \_ -> foldr (\i m -> OM.delete i m) omIs100 iKeys100
-
-  log ""
-  log "Bulk insert"
-  log "-----------"
-
-  log "HM foldl is10000"
-  bench \_ -> foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty is10000
-
-  log "HM fromFoldable is10000"
-  bench \_ -> HM.fromFoldable is10000
-
-  log "HM foldMap is10000"
-  bench \_ -> foldMap (\(Tuple k v) -> HM.singleton k v) is10000
-
-  log ""
-  log "STRING KEYS"
-  log "-----------"
-  let si100 = si 100
-  let hmSi100 = insertHM si100
-  let omSi100 = insertOM si100
-  let sKeys100 = map show (range 1 100)
-
-  log "HM insert 100 distinct strings"
-  bench \_ -> insertHM si100
-
-  log "OM insert 100 distinct strings"
-  bench \_ -> insertOM si100
-
-  log "HM lookup all 100 distinct integers"
-  bench \_ -> map (\i -> HM.lookup i hmSi100) sKeys100
-
-  log "OM lookup all 100 distinct integers"
-  bench \_ -> map (\i -> OM.lookup i omSi100) sKeys100
-
-  log "HM delete all 100 distinct keys"
-  bench \_ -> foldr (\i m -> HM.delete i m) hmSi100 sKeys100
-
-  log "OM delete all 100 distinct keys"
-  bench \_ -> foldr (\i m -> OM.delete i m) omSi100 sKeys100
-
-  log ""
-  log "Unfoldable etc."
-  log "---------------"
-
-  log "OM.toUnfoldable (List)"
-  bench \_ -> OM.toUnfoldable omSi100 :: List (Tuple String Int)
-
-  log "OM.toUnfoldable (Array)"
-  bench \_ -> OM.toUnfoldable omSi100 :: Array (Tuple String Int)
-
-  log "HM.toArrayBy Tuple"
-  bench \_ -> HM.toArrayBy Tuple hmSi100
-
-  log "HM to array using foldMapWithIndex"
-  bench \_ -> foldMapWithIndex (\k v -> Array.singleton (Tuple k v)) hmSi100
-
-  log "HM to array using traversableWithIndexToArray"
-  bench \_ -> traversableWithIndexToArray Tuple hmSi100
-
-  log "OM to array using traversableWithIndexToArray"
-  bench \_ -> traversableWithIndexToArray Tuple omSi100
-
-  log "OM.values (List)"
-  bench \_ -> OM.values omSi100 :: List Int
-
-  log "HM.values (Array)"
-  bench \_ -> HM.values hmSi100 :: Array Int
-
-  -- log "OM.values (Array)"
-  -- bench \_ -> OM.values omSi100 :: List Int
-
-  log "HM.keys (Array)"
-  bench \_ -> HM.keys hmSi100 :: Array String
-
-  -- log "OM.keys (Array)"
-  -- bench \_ -> OM.keys omSi100 :: Array String
-
-  log ""
-  log "Foldable Traversable"
-  log "--------------------"
-
-  log "HM map Just and sequence 10000"
-  bench \_ -> sequence $ Just <$> hmIs10000
-
-  log "OM map Just and sequence 10000"
-  bench \_ -> sequence $ Just <$> omIs10000
-
-
-  log ""
-  log "Filtering"
-  log "---------"
-
-  log "HM filterWithKey key even"
-  bench \_ -> HM.filterWithKey (\k v -> k `mod` 2 == 0) hmIs10000
-
-  log "HM filterWithKey (naive) key even"
-  bench \_ -> (\f -> foldlWithIndex (\k m v -> if f k v then HM.insert k v m else m) HM.empty) (\k v -> k `mod` 2 == 0) hmIs10000
-
-  log "OM filterWithKey key even"
-  bench \_ -> OM.filterWithKey (\k v -> k `mod` 2 == 0) omIs10000
-
-  log "HM filterWithKey value even"
-  bench \_ -> HM.filterWithKey (\k v -> v `mod` 2 == 0) hmSi10000
-
-  log "HM filterWithKey (naive) value even"
-  bench \_ -> (\f -> foldlWithIndex (\k m v -> if f k v then HM.insert k v m else m) HM.empty) (\k v -> v `mod` 2 == 0) hmSi10000
-
-  log "OM filterWithKey value even"
-  bench \_ -> OM.filterWithKey (\k v -> v `mod` 2 == 0) omSi10000
-
-  log ""
-  log "UnionWith"
-  log "---------"
-
-  log "HM union"
-  bench \_ -> HM.union hmIs10000 hmIs10000
-
-  log "HM unionWith const"
-  bench \_ -> HM.unionWith const hmIs10000 hmIs10000
-
-  log "HM repeated insertion"
-  bench \_ -> foldrWithIndex HM.insert hmIs10000 hmIs10000
-
-  log "HM difference 100 10000"
-  bench \_ -> HM.difference hmIs100 hmIs10000
-
-  log "OM difference 100 10000"
-  bench \_ -> OM.difference omIs100 omIs10000
-
-  log "HM difference 10000 100"
-  bench \_ -> HM.difference hmIs10000 hmIs100
-
-  log "OM difference 10000 100"
-  bench \_ -> OM.difference omIs10000 omIs100
-
-  log ""
-  log "Nub"
-  log "---"
-
-  let ints10 = range 1 10
-  log "Array.nub 10 ints"
-  bench \_ -> Array.nub ints10
-
-  log "nubHash 10 ints"
-  bench \_ -> HM.nubHash ints10
-
-  let ints20 = range 1 10 <> range 1 10
-  log "Array.nub 20 ints"
-  bench \_ -> Array.nub ints20
-
-  log "nubHash 20 ints"
-  bench \_ -> HM.nubHash ints20
-
-  let ints1000 = range 1 1000
-  log "Array.nub 1000 ints"
-  bench \_ -> Array.nub ints1000
-
-  log "nubHash 1000 ints"
-  bench \_ -> HM.nubHash ints1000
-
-  let ints2000 = range 1 1000 <> range 1 1000
-  log "Array.nub 2000 ints"
-  bench \_ -> Array.nub ints2000
-
-  log "nubHash 2000 ints"
-  bench \_ -> HM.nubHash ints2000
-
-  let strings1000 = map show $ range 1 1000
-  log "Array.nub 1000 strings"
-  bench \_ -> Array.nub strings1000
-
-  log "nubHash 1000 strings"
-  bench \_ -> HM.nubHash strings1000
-
-  log "toArray <<< HashSet.fromFoldable 1000 strings"
-  bench \_ -> HS.toArray (HS.fromFoldable strings1000)
-
-  let strings2000 = strings1000 <> strings1000
-  log "Array.nub 2000 strings"
-  bench \_ -> Array.nub strings2000
-
-  log "nubHash 2000 strings"
-  bench \_ -> HM.nubHash strings2000
-
-  log "toArray <<< HashSet.fromFoldable 2000 strings"
-  bench \_ -> HS.toArray (HS.fromFoldable strings2000)
-
-  log ""
-  log "Sets"
-  log "-----------"
-
-  let i100 = range 0 100
-  let os100 = OS.fromFoldable i100
-  let hs100 = HS.fromFoldable i100
-
-  let i10000 = range 0 10000
-  let os10000 = OS.fromFoldable i10000
-  let hs10000 = HS.fromFoldable i10000
-
-  log "HS.union i100 i10000"
-  bench \_ -> hs100 `HS.union` hs10000
-
-  log "OS.union i100 i10000"
-  bench \_ -> os100 `OS.union` os10000
-
-  log "HS.union i10000 i100 "
-  bench \_ -> hs10000 `HS.union` hs100
-
-  log "OS.union i10000 i100"
-  bench \_ -> os10000 `OS.union` os100
-
-  log "HS.intersection i100 i10000"
-  bench \_ -> hs100 `HS.intersection` hs10000
-
-  log "OS.intersection i100 i10000"
-  bench \_ -> os100 `OS.intersection` os10000
-
-  log "HS.intersection i10000 i100 "
-  bench \_ -> hs10000 `HS.intersection` hs100
-
-  log "OS.intersection i10000 i100"
-  bench \_ -> os10000 `OS.intersection` os100
-
-  log "HS.difference i100 i10000"
-  bench \_ -> hs100 `HS.difference` hs10000
-
-  log "OS.difference i100 i10000"
-  bench \_ -> os100 `OS.difference` os10000
-
-  log "HS.difference i10000 i100 "
-  bench \_ -> hs10000 `HS.difference` hs100
-
-  log "OS.difference i10000 i100"
-  bench \_ -> os10000 `OS.difference` os100
+  runBenchmark 10 { description: "bulk loading from random order Array (Tuple Int String)"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    keys <- randomSample' s (arbitrary :: Gen Int)
+                    values <- randomSample' s (arbitrary :: Gen String)
+                    pure (Array.zip keys values)
+                  , implementations: [ benchFun "HM.fromArray" (\i _ -> HM.fromArray i)
+                                     , benchFun "HM.fromFoldable" (\i _ -> HM.fromFoldable i)
+                                     -- , benchFun "HM.fromFoldableBy" (\i _ -> HM.fromFoldableBy fst snd i)
+                                     -- , benchFun "HM.foldMap" (\i _ -> foldMap (\(Tuple k v) -> HM.singleton k v) i)
+                                     , benchFun "OM.fromFoldable" (\i _ -> OM.fromFoldable i) ] }
+
+  runBenchmark 10 { description: "look up all integer keys in random order"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    keys <- randomSample' s (arbitrary :: Gen Int)
+                    values <- randomSample' s (arbitrary :: Gen String)
+                    let a = Array.zip keys values
+                    pure { keys, hm: HM.fromFoldable a, om: OM.fromFoldable a }
+                  , implementations: [ benchFun "HM.lookup" (\{hm, keys} _ -> map (\k -> HM.lookup k hm) keys)
+                                     , benchFun "OM.lookup" (\{om, keys} _ -> map (\k -> OM.lookup k om) keys) ] }
+
+  runBenchmark 10 { description: "delete all integer keys in random order"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    keys <- randomSample' s (arbitrary :: Gen Int)
+                    values <- randomSample' s (arbitrary :: Gen String)
+                    let a = Array.zip keys values
+                    pure { keys, hm: HM.fromFoldable a, om: OM.fromFoldable a }
+                  , implementations: [ benchFun "HM.delete" (\{hm, keys} _ -> map (\k -> HM.delete k hm) keys)
+                                     , benchFun "OM.delete" (\{om, keys} _ -> map (\k -> OM.delete k om) keys) ] }
+
+  runBenchmark 10 { description: "filter random map Int Int"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    keys <- randomSample' s arbitrary
+                    values <- randomSample' s arbitrary
+                    let a = Array.zip keys values
+                    pure { hm: HM.fromArrayBy fst snd a
+                         , om: OM.fromFoldable a }
+                  , implementations: [ benchFun "HM.filterWithKey both   even" \{hm} _ -> HM.filterWithKey (\k v -> even k && even v) hm
+                                     , benchFun "HM.filterWithKey either even" \{hm} _ -> HM.filterWithKey (\k v -> even k || even v) hm
+                                     , benchFun "OM.filterWithKey both   even" \{om} _ -> OM.filterWithKey (\k v -> even k && even v) om
+                                     , benchFun "OM.filterWithKey either even" \{om} _ -> OM.filterWithKey (\k v -> even k || even v) om
+                                     ] }
+
+  runBenchmark 10 { description: "set operations on coordinates (half of the elements are shared)"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    left <- randomCoordinates (s / 2)
+                    right <- randomCoordinates (s / 2)
+                    common <- randomCoordinates (s / 2)
+                    let la = left <> common
+                    let ra = right <> common
+                    pure { lhs: HS.fromFoldable la
+                         , rhs: HS.fromFoldable ra
+                         , los: OS.fromFoldable la
+                         , ros: OS.fromFoldable ra }
+                  , implementations: [ benchFun "HS.union" (\{lhs, rhs} _ -> HS.union lhs rhs)
+                                     , benchFun "HS.difference" (\{lhs, rhs} _ -> HS.difference lhs rhs)
+                                     , benchFun "HS.intersection" (\{lhs, rhs} _ -> HS.intersection lhs rhs)
+                                     , benchFun "OS.union" (\{los, ros} _ -> OS.union los ros)
+                                     , benchFun "OS.difference" (\{los, ros} _ -> OS.difference los ros)
+                                     , benchFun "OS.intersection" (\{los, ros} _ -> OS.intersection los ros)
+                                     ]
+                  }
+
+  runBenchmark 10 { description: "nub on an array of coordinates (~50% duplicates)"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    uniques <- randomCoordinates (s / 2)
+                    duplicates <- randomCoordinates (s / 4)
+                    shuffle (uniques <> duplicates <> duplicates)
+                  , implementations: [ benchFun "HM.nubHash" (\a _ -> HM.nubHash a)
+                                     , benchFun "Array.nub" (\a _ -> Array.nub a)
+                                     -- , benchFun "Array.nubEq" (\a _ -> Array.nubEq a)
+                                     ]
+                  }

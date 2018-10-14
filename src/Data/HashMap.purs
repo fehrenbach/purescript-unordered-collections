@@ -24,7 +24,9 @@ module Data.HashMap (
   filterWithKey,
   filterKeys,
 
+  fromArray,
   fromFoldable,
+  fromArrayBy,
   fromFoldableBy,
   toArrayBy,
   keys,
@@ -50,7 +52,7 @@ import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
 import Data.Traversable (class Traversable, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst, snd)
 
 -- | Immutable hash maps from keys `k` to values `v`.
 -- |
@@ -142,15 +144,45 @@ foreign import insertWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -
 insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
 insertWith = insertWithPurs (==) hash
 
+
+-- | Turn an array of pairs into a hash map.
+-- |
+-- | This uses a mutable hash map internally and is faster than
+-- | `fromFoldable`.
+-- |
+-- | If you have an array of something other than tuples, use
+-- | `fromArrayBy`.
+fromArray :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
+fromArray = fromArrayPurs (==) hash fst snd
+
+-- TODO I really want to replace fromFoldable with a version that uses mutating insert, but to type it I need Traversable, I think.
 -- | Turn a foldable functor of pairs into a hash map.
 -- |
 -- | In the presence of duplicate keys, later (by `foldl`) mappings
 -- | overwrite earlier mappings.
+-- |
+-- | If your input is an array, consider using `fromArray` instead.
 fromFoldable :: forall f k v. Foldable f => Hashable k => f (Tuple k v) -> HashMap k v
 fromFoldable = foldl (\m (Tuple k v) -> insert k v m) empty
 
+-- | Turn a foldable functor into a hash map given extraction
+-- | functions for keys and values.
+-- |
+-- | If your input is an array, consider using `fromArrayBy` instead.
+-- |
+-- | `fromFoldableBy fst snd == fromFoldable`
 fromFoldableBy :: forall f a k v. Foldable f => Hashable k => (a -> k) -> (a -> v) -> f a -> HashMap k v
 fromFoldableBy kf vf = foldl (\m a -> insert (kf a) (vf a) m) empty
+
+foreign import fromArrayPurs :: forall a k v. (k -> k -> Boolean) -> (k -> Int) -> (a -> k) -> (a -> v) -> Array a -> HashMap k v
+
+-- | Turn an array into a hash map given extraction functions for keys
+-- | and values.
+-- |
+-- | This uses a mutable hash map internally and is faster than
+-- | `fromFoldable` and `fromFoldableBy`.
+fromArrayBy :: forall a k v. Hashable k => (a -> k) -> (a -> v) -> Array a -> HashMap k v
+fromArrayBy = fromArrayPurs (==) hash
 
 -- | Convert a map to an array using the given function.
 -- |
@@ -284,8 +316,6 @@ foreign import filterWithKey :: forall k v. (k -> v -> Boolean) -> HashMap k v -
 -- | `difference m1 m2 == filterKeys (\k -> member k m2) m1`
 filterKeys :: forall k v. Hashable k => (k -> Boolean) -> HashMap k v -> HashMap k v
 filterKeys f = filterWithKey (\k v -> f k)
-
-
 
 -- | Remove duplicates from an array.
 -- |

@@ -23,7 +23,7 @@ import Data.NonEmpty ((:|))
 import Data.Set as OS
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
-import Data.Tuple (Tuple(..), fst)
+import Data.Tuple (Tuple(..), fst, snd)
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
@@ -155,6 +155,19 @@ main = do
          "\n hma: " <> show (HM.fromFoldable a) <>
          "\n hmb: " <> show (HM.fromFoldable b) <>
          "\nhmab: " <> show (HM.fromFoldable (a <> b)))
+
+  log "fromFoldable agrees with naive foldl+insert"
+  quickCheck $ \(a :: Array (Tuple CollidingInt String)) ->
+    let withfoldl = foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty a
+    in withfoldl == HM.fromFoldable a
+
+  log "fromArrayBy agrees with naive foldl+insert"
+  quickCheck $ \(a :: Array (Tuple CollidingInt String)) ->
+    let withfoldl = foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty a
+    in withfoldl == HM.fromArrayBy fst snd a
+  quickCheckWithSeed (mkSeed 468022793) 1 \(a :: Array (Tuple CollidingInt String)) ->
+    let withfoldl = foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty a
+    in withfoldl == HM.fromArrayBy fst snd a
 
   log "union = repeated insertion"
   quickCheck $ \(a :: Array (Tuple CollidingInt String)) b ->
