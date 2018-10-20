@@ -391,8 +391,10 @@ MapNode.prototype.filterWithKey = function filterWithKey(f) {
     var nodemap = 0;
     var data = [];
     var nodes = [];
-    for (var i = 0; i < 32; i++) {
-        var bit = 1 << i;
+    var skipmap = this.datamap | this.nodemap;
+    while (skipmap !== 0) {
+        var bit = lowestBit(skipmap);
+        skipmap &= ~bit;
         if ((this.datamap & bit) !== 0) {
             var dataIndex = index(this.datamap, bit);
             var k = this.content[dataIndex * 2];
@@ -401,7 +403,7 @@ MapNode.prototype.filterWithKey = function filterWithKey(f) {
                 datamap |= bit;
                 data.push(k, v);
             }
-        } else if ((this.nodemap & bit) !== 0) {
+        } else { // assert (this.nodemap & bit) !== 0
             var nodeIndex = index(this.nodemap, bit);
             var node = this.content[this.content.length - nodeIndex - 1].filterWithKey(f);
             if (isEmpty(node)) continue;
