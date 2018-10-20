@@ -47,6 +47,7 @@ import Prelude
 
 import Data.Foldable (class Foldable, foldl, foldlDefault, foldr, foldrDefault)
 import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
+import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), isJust)
@@ -59,10 +60,10 @@ import Data.Tuple (Tuple(..), fst, snd)
 -- | Note that this is an *unordered* collection.
 foreign import data HashMap :: Type -> Type -> Type
 
-foreign import eqPurs :: forall k v. (k -> k -> Boolean) -> (v -> v -> Boolean) -> HashMap k v -> HashMap k v -> Boolean
+foreign import eqPurs :: forall k v. Fn2 (k -> k -> Boolean) (v -> v -> Boolean) (HashMap k v -> HashMap k v -> Boolean)
 
 instance eqHashMap :: (Eq k, Eq v) => Eq (HashMap k v) where
-  eq = eqPurs eq eq
+  eq = runFn2 eqPurs eq eq
 
 instance hashHashMap :: (Hashable k, Hashable v) => Hashable (HashMap k v) where
   hash = hashPurs (hash :: v -> Int)
@@ -117,21 +118,21 @@ foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> 
 -- | The empty map.
 foreign import empty :: forall k v. HashMap k v
 
-foreign import lookupPurs :: forall k v. (k -> k -> Boolean) -> k -> Int -> HashMap k v -> Maybe v
+foreign import lookupPurs :: forall k v. Fn3 (k -> k -> Boolean) k Int (HashMap k v -> Maybe v)
 
 -- | Get a value by key.
 lookup :: forall k v. Hashable k => k -> HashMap k v -> Maybe v
-lookup k = lookupPurs (==) k (hash k)
+lookup k = runFn3 lookupPurs (==) k (hash k)
 
-foreign import insertPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> k -> v -> HashMap k v -> HashMap k v
+foreign import insertPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) (k -> v -> HashMap k v -> HashMap k v)
 
 -- | Insert or replace a value.
 -- |
 -- | `lookup k (insert k v m) == Just v`
 insert :: forall k v. Hashable k => k -> v -> HashMap k v -> HashMap k v
-insert = insertPurs (==) hash
+insert = runFn2 insertPurs (==) hash
 
-foreign import insertWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
+foreign import insertWithPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) ((v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v)
 
 -- | Insert or update a value with the given function.
 -- |
@@ -142,7 +143,7 @@ foreign import insertWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -
 -- | insertWith (<>) 5 "b" (singleton 5 "a") == singleton 5 "ab"
 -- | ```
 insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
-insertWith = insertWithPurs (==) hash
+insertWith = runFn2 insertWithPurs (==) hash
 
 
 -- | Turn an array of pairs into a hash map.
@@ -153,7 +154,7 @@ insertWith = insertWithPurs (==) hash
 -- | If you have an array of something other than tuples, use
 -- | `fromArrayBy`.
 fromArray :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
-fromArray = fromArrayPurs (==) hash fst snd
+fromArray = fromArrayBy fst snd
 
 -- TODO I really want to replace fromFoldable with a version that uses mutating insert, but to type it I need Traversable, I think.
 -- | Turn a foldable functor of pairs into a hash map.
@@ -174,7 +175,7 @@ fromFoldable = foldl (\m (Tuple k v) -> insert k v m) empty
 fromFoldableBy :: forall f a k v. Foldable f => Hashable k => (a -> k) -> (a -> v) -> f a -> HashMap k v
 fromFoldableBy kf vf = foldl (\m a -> insert (kf a) (vf a) m) empty
 
-foreign import fromArrayPurs :: forall a k v. (k -> k -> Boolean) -> (k -> Int) -> (a -> k) -> (a -> v) -> Array a -> HashMap k v
+foreign import fromArrayPurs :: forall a k v. Fn2 (k -> k -> Boolean) (k -> Int) ((a -> k) -> (a -> v) -> Array a -> HashMap k v)
 
 -- | Turn an array into a hash map given extraction functions for keys
 -- | and values.
@@ -182,7 +183,7 @@ foreign import fromArrayPurs :: forall a k v. (k -> k -> Boolean) -> (k -> Int) 
 -- | This uses a mutable hash map internally and is faster than
 -- | `fromFoldable` and `fromFoldableBy`.
 fromArrayBy :: forall a k v. Hashable k => (a -> k) -> (a -> v) -> Array a -> HashMap k v
-fromArrayBy = fromArrayPurs (==) hash
+fromArrayBy = runFn2 fromArrayPurs (==) hash
 
 -- | Convert a map to an array using the given function.
 -- |
@@ -209,13 +210,13 @@ keys = toArrayBy const
 values :: forall k v. HashMap k v -> Array v
 values = toArrayBy (\_ v -> v)
 
-foreign import deletePurs :: forall k v. (k -> k -> Boolean) -> k -> Int -> HashMap k v -> HashMap k v
+foreign import deletePurs :: forall k v. Fn3 (k -> k -> Boolean) k Int (HashMap k v -> HashMap k v)
 
 -- | Remove a key and its associated value from a map.
 -- |
 -- | `lookup k (delete k m) == Nothing`
 delete :: forall k v. Hashable k => k -> HashMap k v -> HashMap k v
-delete k = deletePurs (==) k (hash k)
+delete k = runFn3 deletePurs (==) k (hash k)
 
 foreign import debugShow :: forall k v. HashMap k v -> String
 
@@ -260,17 +261,15 @@ foreign import size :: forall k v. HashMap k v -> Int
 -- |
 -- | This is the same as `Semigroup.append` aka `(<>)`.
 union :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
-union = unionWith const
+union = runFn3 unionWithPurs eq hash const
 
-foreign import nubHashPurs :: forall a. (a -> a -> Boolean) -> (a -> Int) -> Array a -> Array a
-
-foreign import unionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+foreign import unionWithPurs :: forall k v. Fn3 (k -> k -> Boolean) (k -> Int) (v -> v -> v) (HashMap k v -> HashMap k v -> HashMap k v)
 
 -- | Union two maps, combining the values for keys that appear in both maps using the given function.
 -- |
 -- | `unionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 unionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
-unionWith = unionWithPurs eq hash
+unionWith f = runFn3 unionWithPurs eq hash f
 
 -- | Intersect two maps.
 -- |
@@ -278,15 +277,15 @@ unionWith = unionWithPurs eq hash
 -- |
 -- | This is the same as `Semigroup.append` aka `(<>)`.
 intersection :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
-intersection = intersectionWith (\_ x -> x)
+intersection = runFn3 intersectionWithPurs eq hash (\_ x -> x)
 
-foreign import intersectionWithPurs :: forall k v. (k -> k -> Boolean) -> (k -> Int) -> (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
+foreign import intersectionWithPurs :: forall k v. Fn3 (k -> k -> Boolean) (k -> Int) (v -> v -> v) (HashMap k v -> HashMap k v -> HashMap k v)
 
 -- | Intersect two maps, combining the values for keys that appear in both maps using the given function.
 -- |
 -- | `intersectionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 intersectionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k v -> HashMap k v
-intersectionWith = intersectionWithPurs eq hash
+intersectionWith f = runFn3 intersectionWithPurs eq hash f
 
 -- | Compute the difference of two maps, that is a new map of all the
 -- | mappings in the left map that do not have a corresponding key in
@@ -322,4 +321,6 @@ filterKeys f = filterWithKey (\k v -> f k)
 -- | Like `nub` from `Data.Array`, but uses a `Hashable` constraint
 -- | instead of an `Ord` constraint.
 nubHash :: forall a. Hashable a => Array a -> Array a
-nubHash = nubHashPurs (==) hash
+nubHash = runFn2 nubHashPurs (==) hash
+
+foreign import nubHashPurs :: forall a. Fn2 (a -> a -> Boolean) (a -> Int) (Array a -> Array a)

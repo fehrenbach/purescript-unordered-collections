@@ -772,90 +772,69 @@ function insert2remove1(a, insertIndex, v1, v2, removeIndex) {
 var empty = new MapNode(0,0,[]);
 
 exports.empty = empty;
-exports.lookupPurs = function (keyEquals) {
+
+exports.lookupPurs = function (keyEquals, key, keyHash) {
+    return function (m) {
+        return m.lookup(keyEquals, key, keyHash, 0);
+    };
+};
+
+exports.fromArrayPurs = function (keyEquals, hashFunction) {
+    return function (kf) {
+        return function (vf) {
+            return function (a) {
+                var m = new MapNode(0,0,[]);
+                for (var i = 0; i < a.length; i++) {
+                    var x = a[i];
+                    var k = kf(x);
+                    m.insertMut(keyEquals, hashFunction, k, hashFunction(k), vf(x), 0);
+                }
+                return m;
+            };
+        };
+    };
+};
+
+exports.insertPurs = function (keyEquals, hashFunction) {
     return function (key) {
-        return function (keyHash) {
+        return function (value) {
             return function (m) {
-                return m.lookup(keyEquals, key, keyHash, 0);
+                return m.insert(keyEquals, hashFunction, key, hashFunction(key), value, 0);
             };
         };
     };
 };
 
-exports.fromArrayPurs = function (keyEquals) {
-    return function (hashFunction) {
-        return function (kf) {
-            return function (vf) {
-                return function (a) {
-                    var m = new MapNode(0,0,[]);
-                    for (var i = 0; i < a.length; i++) {
-                        var x = a[i];
-                        var k = kf(x);
-                        m.insertMut(keyEquals, hashFunction, k, hashFunction(k), vf(x), 0);
-                    }
-                    return m;
-                };
-            };
-        };
-    };
-};
-
-exports.insertPurs = function (keyEquals) {
-    return function (hashFunction) {
+exports.insertWithPurs = function (keyEquals, hashFunction) {
+    return function (f) {
         return function (key) {
             return function (value) {
                 return function (m) {
-                    return m.insert(keyEquals, hashFunction, key, hashFunction(key), value, 0);
+                    return m.insertWith(keyEquals, hashFunction, f, key, hashFunction(key), value, 0);
                 };
             };
         };
     };
 };
 
-exports.insertWithPurs = function (keyEquals) {
-    return function (hashFunction) {
-        return function (f) {
-            return function (key) {
-                return function (value) {
-                    return function (m) {
-                        return m.insertWith(keyEquals, hashFunction, f, key, hashFunction(key), value, 0);
-                    };
-                };
-            };
+exports.deletePurs = function (keyEquals, key, keyHash) {
+    return function (m) {
+        return m.delet(keyEquals, key, keyHash, 0);
+    };
+};
+
+exports.unionWithPurs = function (eq, hash, f) {
+    return function (l) {
+        return function (r) {
+            return l.unionWith(eq, hash, f, r, 0);
         };
     };
 };
 
-exports.deletePurs = function (keyEquals) {
-    return function (key) {
-        return function (keyHash) {
-            return function (m) {
-                return m.delet(keyEquals, key, keyHash, 0);
-            };
-        };
-    };
-};
-
-exports.unionWithPurs = function (eq) {
-    return function (hash) {
-        return function (f) {
-            return function (l) {
-                return function (r) {
-                    return l.unionWith(eq, hash, f, r, 0);
-                };
-            };
-        };
-    };
-};
-
-exports.intersectionWithPurs = function (eq) {
-    return function (hash) {
-        return function (f) {
-            return function (l) {
-                return function (r) {
-                    return l.intersectionWith(eq, hash, f, r, 0);
-                };
-            };
+exports.intersectionWithPurs = function (eq, hash, f) {
+    return function (l) {
+        return function (r) {
+            return l.intersectionWith(eq, hash, f, r, 0);
         };
     };
 };
@@ -880,12 +859,10 @@ exports.singletonPurs = function (k) {
     };
 };
 
-exports.eqPurs = function (kf) {
-    return function (vf) {
-        return function (a) {
-            return function (b) {
-                return a.eq(kf, vf, b);
-            };
+exports.eqPurs = function (keq, veq) {
+    return function (a) {
+        return function (b) {
+            return a.eq(keq, veq, b);
         };
     };
 };
@@ -936,20 +913,18 @@ exports.filterWithKey = function (f) {
     };
 };
 
-exports.nubHashPurs = function (eq) {
-    return function (hash) {
-        return function (a) {
-            var m = new MapNode(0,0,[]);
-            var r = [];
-            for (var i = 0; i < a.length; i++) {
-                var x = a[i];
-                var hx = hash(x);
-                if (m.lookup(eq, x, hx, 0) !== Data_Maybe.Nothing.value)
-                    continue;
-                m.insertMut(eq, hash, x, hx, null, 0);
-                r.push(x);
-            }
-            return r;
-        };
+exports.nubHashPurs = function (eq, hash) {
+    return function (a) {
+        var m = new MapNode(0,0,[]);
+        var r = [];
+        for (var i = 0; i < a.length; i++) {
+            var x = a[i];
+            var hx = hash(x);
+            if (m.lookup(eq, x, hx, 0) !== Data_Maybe.Nothing.value)
+                continue;
+            m.insertMut(eq, hash, x, hx, null, 0);
+            r.push(x);
+        }
+        return r;
     };
 };

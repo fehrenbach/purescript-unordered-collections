@@ -12,16 +12,17 @@
         "output"
     ],
     "dependencies": {
+        "purescript-enums": "^4.0.0",
+        "purescript-functions": "^4.0.0",
+        "purescript-integers": "^4.0.0",
         "purescript-prelude": "^4.0.0",
         "purescript-record": "^1.0.0",
-        "purescript-tuples": "^5.0.0",
-        "purescript-integers": "^4.0.0",
-        "purescript-enums": "^4.0.0"
+        "purescript-tuples": "^5.0.0"
     },
     "devDependencies": {
-        "purescript-psci-support": "^4.0.0",
-        "purescript-ordered-collections": "^1.2.0",
         "purescript-minibench": "^2.0.0",
+        "purescript-ordered-collections": "^1.2.0",
+        "purescript-psci-support": "^4.0.0",
         "purescript-quickcheck": "^5.0.0",
         "purescript-st": "v4.0.0"
     }
