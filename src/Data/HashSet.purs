@@ -12,7 +12,9 @@ module Data.HashSet (
   member,
   delete,
 
+  map,
   filter,
+  mapMaybe,
 
   union,
   intersection,
@@ -24,12 +26,13 @@ module Data.HashSet (
   toArray
   ) where
 
-import Prelude
+import Prelude hiding (map)
 
 import Data.Foldable (class Foldable, foldr)
 import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap as M
 import Data.Hashable (class Hashable)
+import Data.Maybe (Maybe(..))
 
 -- | A `HashSet a` is a set with elements of type `a`.
 -- |
@@ -80,12 +83,29 @@ fromFoldable = foldr insert empty
 toArray :: forall a. HashSet a -> Array a
 toArray (HashSet m) = M.keys m
 
+-- | Construct a new set by applying a function to each element of an
+-- | input set.
+-- |
+-- | If distinct inputs map to the same output, this changes the
+-- | cardinality of the set, therefore hash set is not a `Functor`.
+-- | Also, the order in which elements appear in the new set is
+-- | entirely dependent on the hash function for type `b`.
+map :: forall a b. Hashable b => (a -> b) -> HashSet a -> HashSet b
+map f = foldr (\x -> insert (f x)) empty
+
 -- | Remove all elements from the set for which the predicate does not
 -- | hold.
 -- |
 -- | `filter (const false) s == empty`
 filter :: forall a. (a -> Boolean) -> HashSet a -> HashSet a
 filter f (HashSet m) = HashSet (M.filterWithKey (\k v -> f k) m)
+
+-- | Map a function over a set, keeping only the `Just` values.
+mapMaybe :: forall a b. Hashable b => (a -> Maybe b) -> HashSet a -> HashSet b
+mapMaybe f =
+  foldr (\a s -> case f a of
+            Nothing -> s
+            Just b -> insert b s) empty
 
 -- | Union two sets.
 union :: forall a. Hashable a => HashSet a -> HashSet a -> HashSet a

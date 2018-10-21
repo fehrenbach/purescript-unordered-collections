@@ -7,13 +7,14 @@ module Bench.Main where
 import Prelude
 
 import Data.Array as Array
+import Data.FoldableWithIndex (foldrWithIndex)
 import Data.HashMap as HM
 import Data.HashSet as HS
 import Data.Int (ceil, even, toNumber)
 import Data.Map as OM
+import Data.Maybe (Maybe(..))
 import Data.Set as OS
 import Data.Traversable (for)
-import Data.Tuple (fst, snd)
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Performance.Minibench (benchWith', withUnits)
@@ -125,12 +126,31 @@ main = do
                     keys <- randomSample' s arbitrary
                     values <- randomSample' s arbitrary
                     let a = Array.zip keys values
-                    pure { hm: HM.fromArrayBy fst snd a
+                    pure { hm: HM.fromArray a
                          , om: OM.fromFoldable a }
                   , implementations: [ benchFun "HM.filterWithKey both   even" \{hm} _ -> HM.filterWithKey (\k v -> even k && even v) hm
                                      , benchFun "HM.filterWithKey either even" \{hm} _ -> HM.filterWithKey (\k v -> even k || even v) hm
                                      , benchFun "OM.filterWithKey both   even" \{om} _ -> OM.filterWithKey (\k v -> even k && even v) om
                                      , benchFun "OM.filterWithKey either even" \{om} _ -> OM.filterWithKey (\k v -> even k || even v) om
+                                     ] }
+
+  let hmMapMaybeWithKeyFoldrWIInsert f = foldrWithIndex (\k v m -> case f k v of
+                                                            Nothing -> m
+                                                            Just w -> HM.insert k w m) HM.empty
+  runBenchmark 10 { description: "mapMaybeWithKey random map Int Int"
+                  , sizes: [ 100, 10000 ]
+                  , input: \s -> do
+                    keys <- randomSample' s arbitrary
+                    values <- randomSample' s arbitrary
+                    let a = Array.zip keys values
+                    pure { hm: HM.fromArray a
+                         , om: OM.fromFoldable a }
+                  , implementations: [ benchFun "HM.mapMaybeWithKey" \{hm} _ ->
+                                        HM.mapMaybeWithKey (\k v -> if even k then Just (k+v) else Nothing) hm
+                                     , benchFun "HM foldrWI+insert" \{hm} _ ->
+                                        hmMapMaybeWithKeyFoldrWIInsert (\k v -> if even k then Just (k+v) else Nothing) hm
+                                     , benchFun "OM.mapMaybeWithKey" \{om} _ ->
+                                        OM.mapMaybeWithKey (\k v -> if even k then Just (k+v) else Nothing) om
                                      ] }
 
   runBenchmark 10 { description: "set operations on coordinates (half of the elements are shared)"

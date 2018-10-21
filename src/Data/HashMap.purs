@@ -23,11 +23,14 @@ module Data.HashMap (
   filter,
   filterWithKey,
   filterKeys,
+  mapMaybe,
+  mapMaybeWithKey,
 
   fromArray,
   fromFoldable,
   fromArrayBy,
   fromFoldableBy,
+  fromFoldableWithIndex,
   toArrayBy,
   keys,
   values,
@@ -46,14 +49,15 @@ module Data.HashMap (
 import Prelude
 
 import Data.Foldable (class Foldable, foldl, foldlDefault, foldr, foldrDefault)
-import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
+import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
 import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
-import Data.Maybe (Maybe(..), isJust)
+import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.Traversable (class Traversable, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..), fst, snd)
+import Partial.Unsafe (unsafePartial)
 
 -- | Immutable hash maps from keys `k` to values `v`.
 -- |
@@ -145,6 +149,7 @@ foreign import insertWithPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) 
 insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
 insertWith = runFn2 insertWithPurs (==) hash
 
+foreign import fromArrayPurs :: forall a k v. Fn2 (k -> k -> Boolean) (k -> Int) ((a -> k) -> (a -> v) -> Array a -> HashMap k v)
 
 -- | Turn an array of pairs into a hash map.
 -- |
@@ -155,6 +160,14 @@ insertWith = runFn2 insertWithPurs (==) hash
 -- | `fromArrayBy`.
 fromArray :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
 fromArray = fromArrayBy fst snd
+
+-- | Turn an array into a hash map given extraction functions for keys
+-- | and values.
+-- |
+-- | This uses a mutable hash map internally and is faster than
+-- | `fromFoldable` and `fromFoldableBy`.
+fromArrayBy :: forall a k v. Hashable k => (a -> k) -> (a -> v) -> Array a -> HashMap k v
+fromArrayBy = runFn2 fromArrayPurs (==) hash
 
 -- TODO I really want to replace fromFoldable with a version that uses mutating insert, but to type it I need Traversable, I think.
 -- | Turn a foldable functor of pairs into a hash map.
@@ -175,15 +188,17 @@ fromFoldable = foldl (\m (Tuple k v) -> insert k v m) empty
 fromFoldableBy :: forall f a k v. Foldable f => Hashable k => (a -> k) -> (a -> v) -> f a -> HashMap k v
 fromFoldableBy kf vf = foldl (\m a -> insert (kf a) (vf a) m) empty
 
-foreign import fromArrayPurs :: forall a k v. Fn2 (k -> k -> Boolean) (k -> Int) ((a -> k) -> (a -> v) -> Array a -> HashMap k v)
-
--- | Turn an array into a hash map given extraction functions for keys
--- | and values.
+-- | Turn a foldable functor with index into a hash map.
 -- |
--- | This uses a mutable hash map internally and is faster than
--- | `fromFoldable` and `fromFoldableBy`.
-fromArrayBy :: forall a k v. Hashable k => (a -> k) -> (a -> v) -> Array a -> HashMap k v
-fromArrayBy = runFn2 fromArrayPurs (==) hash
+-- | This can be used to convert, for example, an ordered map into a
+-- | hash map with the same keys and values, or an array into a hash
+-- | map with values indexed by their position in the array.
+-- |
+-- | ```PureScript
+-- | fromFoldableWithIndex ["a", "b"] == fromArray [Tuple 0 "a", Tuple 1 "b"]
+-- | ```
+fromFoldableWithIndex :: forall f k v. FoldableWithIndex k f => Hashable k => f v -> HashMap k v
+fromFoldableWithIndex = foldlWithIndex (\k m v -> insert k v m) empty
 
 -- | Convert a map to an array using the given function.
 -- |
@@ -221,7 +236,7 @@ delete k = runFn3 deletePurs (==) k (hash k)
 foreign import debugShow :: forall k v. HashMap k v -> String
 
 instance showHashMap :: (Show k, Show v) => Show (HashMap k v) where
-  show m = "(fromFoldable " <> show (toArrayBy Tuple m) <> ")"
+  show m = "(fromArray " <> show (toArrayBy Tuple m) <> ")"
 
 foreign import singletonPurs :: forall k v. k -> Int -> v -> HashMap k v
 
@@ -300,7 +315,7 @@ difference l r = foldr delete l (keys r)
 -- | filter (const False) m == empty
 -- | filter (const True) m == m
 -- | ```
-filter :: forall k v. Hashable k => (v -> Boolean) -> HashMap k v -> HashMap k v
+filter :: forall k v. (v -> Boolean) -> HashMap k v -> HashMap k v
 filter f = filterWithKey (const f)
 
 -- | Remove key-value-pairs from a map for which the predicate does
@@ -313,8 +328,23 @@ foreign import filterWithKey :: forall k v. (k -> v -> Boolean) -> HashMap k v -
 -- | hold.
 -- |
 -- | `difference m1 m2 == filterKeys (\k -> member k m2) m1`
-filterKeys :: forall k v. Hashable k => (k -> Boolean) -> HashMap k v -> HashMap k v
+filterKeys :: forall k v. (k -> Boolean) -> HashMap k v -> HashMap k v
 filterKeys f = filterWithKey (\k v -> f k)
+
+-- | Apply a function to all values in a hash map, discard the
+-- | `Nothing` results, and keep the value of the `Just` results.
+mapMaybe :: forall k v w. (v -> Maybe w) -> HashMap k v -> HashMap k w
+mapMaybe = mapMaybeWithKey <<< const
+
+-- | Apply a function to all key value pairs in a hash map, discard
+-- | the `Nothing` results, and keep the value of the `Just` results.
+mapMaybeWithKey :: forall k v w. (k -> v -> Maybe w) -> HashMap k v -> HashMap k w
+mapMaybeWithKey f = map (unsafePartial fromJust) <<< filter isJust <<< mapWithIndex f
+-- NOTE: Yes, this is three traversals but, perhaps suprisingly,
+-- faster than building a new map by repeated insertion. Mutable
+-- insertion is not going to make a big difference. If this ever
+-- becomes a performance bottleneck, please open an issue --- this can
+-- easily be done in one traversal.
 
 -- | Remove duplicates from an array.
 -- |
