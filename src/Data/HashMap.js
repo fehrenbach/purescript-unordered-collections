@@ -735,18 +735,29 @@ function remove1(a, index) {
 }
 
 // Make a copy while overwriting the element at index, or adding one element if index == a.length
-function copyAndOverwriteOrExtend1(a, index, v) {
+/*
     var res = a.slice();
-    res[index] = v;
+    if (index > res.length || index < 0) throw "HashMap WTF?"
+    if (index < res.length) res[index] = v;
+    else res.push(v);
+    return res;
+*/
+function copyAndOverwriteOrExtend1(a, index, v) {
+    var res = [];
+    for (var i = 0; i < index; i++) res.push(a[i]);
+    res.push(v);
+    i++;
+    for (; i < a.length; i++) res.push(a[i]);
     return res;
 }
 
 function remove2insert1(a, removeIndex, insertIndex, v1) {
-    var res = new Array(a.length - 1);
-    for (var i = 0; i < removeIndex; i++) res[i] = a[i];
-    for (; i < insertIndex; i++) res[i] = a[i+2];
-    res[i++] = v1;
-    for (; i < res.length; i++) res[i] = a[i+1];
+    var res = [];
+    for (var i = 0; i < removeIndex; i++) res.push(a[i]);
+    for (; i < insertIndex; i++) res.push(a[i+2]);
+    res.push(v1);
+    i++;
+    for (; i < a.length - 1; i++) res.push(a[i+1]);
     return res;
 }
 

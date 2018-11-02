@@ -14,7 +14,7 @@ bench: output/Bench.Main/index.js
 	node --expose-gc -e 'require("./output/Bench.Main/index.js").main()'
 
 bench-trace: output/Bench.Main/index.js
-	node --expose-gc --trace-opt --trace-deopt --print-opt-code --code-comments -e  'require("./output/Bench.Main/index.js").main()'
+	node --expose-gc --trace-elements-transitions --trace-opt --trace-deopt --print-opt-code --code-comments -e  'require("./output/Bench.Main/index.js").main()'
 
 compile: $(SOURCES) $(BOWER_SOURCES)
 	purs compile 'src/**/*.purs' 'bower_components/*/src/**/*.purs'

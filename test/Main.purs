@@ -156,6 +156,10 @@ main = do
          "\n hmb: " <> show (HM.fromFoldable b) <>
          "\nhmab: " <> show (HM.fromFoldable (a <> b)))
 
+  log "fromArray agrees with fromFoldable"
+  quickCheck $ \(a :: Array (Tuple CollidingInt String)) ->
+    HM.fromArray a == HM.fromFoldable a
+
   log "fromFoldable agrees with naive foldl+insert"
   quickCheck $ \(a :: Array (Tuple CollidingInt String)) ->
     let withfoldl = foldl (\m (Tuple k v) -> HM.insert k v m) HM.empty a
