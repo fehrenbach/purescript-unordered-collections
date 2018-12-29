@@ -6,6 +6,7 @@ module Bench.Main where
 
 import Prelude
 
+import Control.Monad.ST (foreach, run)
 import Data.Array as Array
 import Data.FoldableWithIndex (foldrWithIndex)
 import Data.HashMap as HM
@@ -17,6 +18,9 @@ import Data.Set as OS
 import Data.Traversable (for)
 import Effect (Effect)
 import Effect.Class.Console (log)
+import Foreign.Object (Object)
+import Foreign.Object.ST (new, poke)
+import Foreign.Object.ST.Unsafe (unsafeFreeze)
 import Performance.Minibench (benchWith', withUnits)
 import Test.QuickCheck (arbitrary)
 import Test.QuickCheck.Gen (Gen, randomSample')
@@ -85,6 +89,8 @@ randomCoordinates :: Int -> Effect (Array { x :: Number, y :: Number })
 randomCoordinates size = do xs <- randomNumbers size
                             ys <- randomNumbers size
                             pure (Array.zipWith (\x y -> {x, y}) xs ys)
+
+foreign import bulkLoadStringKeysObj :: Array Int -> Object Int
 
 main :: Effect Unit
 main = do
@@ -183,5 +189,18 @@ main = do
                   , implementations: [ benchFun "HM.nubHash" (\a _ -> HM.nubHash a)
                                      , benchFun "Array.nub" (\a _ -> Array.nub a)
                                      -- , benchFun "Array.nubEq" (\a _ -> Array.nubEq a)
+                                     ]
+                  }
+  runBenchmark 10 { description: "bulk load string keys, numbers*10, range 1 1000000"
+                  , sizes: [ 1000000 ]
+                  , input: \s -> pure (Array.range 0 s)
+                  , implementations: [ benchFun "HM.fromArrayBy" (\i _ -> HM.fromArrayBy show (_ * 10) i)
+                                     , benchFun "FFI JavaScript" (\i _ -> bulkLoadStringKeysObj i)
+                                     , benchFun "STForeignObject" (\arr _ -> run do
+                                                         m <- new
+                                                         _ <- foreach arr (\i -> do
+                                                                              _ <- poke (show i) (i * 10) m
+                                                                              pure unit)
+                                                         unsafeFreeze m)
                                      ]
                   }

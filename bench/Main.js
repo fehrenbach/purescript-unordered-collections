@@ -18,3 +18,10 @@ exports.shuffle = function (input) {
         return a;
     };
 }
+
+exports.bulkLoadStringKeysObj = function (arr) {
+    var m = {};
+    for (var i = 0; i < arr.length; i++)
+        m[arr[i]+""] = i*10;
+    return m;
+}
