@@ -53,6 +53,16 @@ instance arbitraryCollidingInt :: Arbitrary CollidingInt where
 instance collidingIntHashable :: Hashable CollidingInt where
   hash (CollidingInt i) = i `mod` 100
 
+newtype SmallInt = SmallInt Int
+
+derive instance eqSmallInt :: Eq SmallInt
+derive instance ordSmallInt :: Ord SmallInt
+derive newtype instance showSmallInt :: Show SmallInt
+derive newtype instance hashableSmallInt :: Hashable SmallInt
+
+instance arbitrarySmallInt :: Arbitrary SmallInt where
+  arbitrary = (\x -> SmallInt (x `mod` 100)) <$> arbitrary
+
 prop ::
   forall k v.
   Eq v => Show v =>
@@ -69,7 +79,7 @@ prop = go OM.empty HM.empty
           go (OM.insert k v m) (HM.insert k v hm) rest
 
 arbitraryHM :: forall k v. Hashable k => Array (Tuple k v) -> HashMap k v
-arbitraryHM = HM.fromFoldable
+arbitraryHM = HM.fromArray
 
 nowGood :: forall a. Eq a => a -> a -> Effect Unit
 nowGood a b = if a == b then log "Fixed \\o/" else throw "still broken"
@@ -101,6 +111,11 @@ main = do
   if (HM.insertWith (<>) 5 "b" (HM.singleton 5 "a")) == (HM.singleton 5 "ab")
     then log "passed"
     else throw "failed"
+
+  log "upsert = insertWith (const f)"
+  quickCheck $ \f k v (a :: Array (Tuple SmallInt Int)) ->
+    let m = arbitraryHM a
+    in HM.upsert f k v m === HM.insertWith (const f) k v m
 
   log "toArrayBy"
   quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->

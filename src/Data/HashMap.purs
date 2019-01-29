@@ -10,13 +10,14 @@ module Data.HashMap (
 
   lookup,
   insert,
-  insertWith,
   delete,
 
   size,
 
   isEmpty,
   member,
+  upsert,
+  insertWith,
   update,
   alter,
 
@@ -146,6 +147,10 @@ foreign import insertWithPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) 
 -- | ```PureScript
 -- | insertWith (<>) 5 "b" (singleton 5 "a") == singleton 5 "ab"
 -- | ```
+-- |
+-- | If your update function does not use the existing value,
+-- | especially if you find yourself writing `insertWith (const f)`,
+-- | consider using `upsert` instead.
 insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
 insertWith = runFn2 insertWithPurs (==) hash
 
@@ -255,15 +260,23 @@ foreign import isEmpty :: forall k v. HashMap k v -> Boolean
 member :: forall k v. Hashable k => k -> HashMap k v -> Boolean
 member k = isJust <<< lookup k
 
--- | Insert a value, delete a value, or update a value for a key in a map
+-- | Insert a value, delete a value, or update a value for a key in a map.
 alter :: forall k v. Hashable k => (Maybe v -> Maybe v) -> k -> HashMap k v -> HashMap k v
 alter f k m = case f (lookup k m) of
   Nothing -> delete k m
   Just v -> insert k v m
 
--- | Update or delete the value for a key in a map
+-- | Update or delete the value for a key in a map.
 update :: forall k v. Hashable k => (v -> Maybe v) -> k -> HashMap k v -> HashMap k v
 update f = alter (_ >>= f)
+
+-- | Insert or update a value.
+-- |
+-- | If your update function uses both the previously existing value
+-- | and the new value, especially if you find yourself writing
+-- | `upsert (f v) k v`, consider using `insertWith` instead.
+upsert :: forall k v. Hashable k => (v -> v) -> k -> v -> HashMap k v -> HashMap k v
+upsert f = insertWith (\_ v -> f v)
 
 -- | Returns the number of key-value pairs in a map.
 -- |
