@@ -300,10 +300,6 @@ unionWith :: forall k v. Hashable k => (v -> v -> v) -> HashMap k v -> HashMap k
 unionWith f = runFn3 unionWithPurs eq hash f
 
 -- | Intersect two maps.
--- |
--- | For duplicate keys, we keep the value from the right map.
--- |
--- | This is the same as `Semigroup.append` aka `(<>)`.
 intersection :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
 intersection = runFn3 intersectionWithPurs eq hash (\_ x -> x)
 
