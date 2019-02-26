@@ -41,6 +41,8 @@ newtype HashSet a = HashSet (M.HashMap a Unit)
 
 derive newtype instance eqHashSet :: Eq a => Eq (HashSet a)
 
+derive newtype instance hashableHashSet :: Hashable a => Hashable (HashSet a)
+
 instance showHashSet :: Show a => Show (HashSet a) where
   show s = "(fromFoldable " <> show (toArray s) <> ")"
 
