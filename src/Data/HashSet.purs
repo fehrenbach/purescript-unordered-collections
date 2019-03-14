@@ -46,6 +46,10 @@ derive newtype instance eqHashSet :: Eq a => Eq (HashSet a)
 
 derive newtype instance hashableHashSet :: Hashable a => Hashable (HashSet a)
 
+derive newtype instance semigroupHashSet :: Hashable a => Semigroup (HashSet a)
+
+derive newtype instance monoidHashSet :: Hashable a => Monoid (HashSet a)
+
 instance showHashSet :: Show a => Show (HashSet a) where
   show s = "(fromFoldable " <> show (toArray s) <> ")"
 
