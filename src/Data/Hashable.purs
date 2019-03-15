@@ -16,8 +16,9 @@ import Prelude
 import Data.Either (Either(..))
 import Data.Enum (fromEnum)
 import Data.Eq (class EqRecord)
-import Data.Foldable (foldl)
+import Data.Foldable (class Foldable, foldl)
 import Data.Int.Bits ((.^.))
+import Data.List (List)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Prim.Row as Row
@@ -68,8 +69,14 @@ foreign import hashString :: String -> Int
 instance hashableString :: Hashable String where
   hash = hashString
 
+hashFoldable :: forall f a. Foldable f => Hashable a => f a -> Int
+hashFoldable = foldl (\h a -> 31 * h + hash a) 1
+
 instance hashableArray :: Hashable a => Hashable (Array a) where
-  hash = foldl (\h a -> 31 * h + hash a) 1
+  hash = hashFoldable
+
+instance hashableList :: Hashable a => Hashable (List a) where
+  hash = hashFoldable
 
 instance hashableTuple :: (Hashable a, Hashable b) => Hashable (Tuple a b) where
   hash (Tuple a b) = hash a * 31 + hash b
