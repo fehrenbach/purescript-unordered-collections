@@ -22,6 +22,9 @@ module Data.HashSet (
 
   size,
 
+  isEmpty,
+
+  fromArray,
   fromFoldable,
   toArray
   ) where
@@ -129,3 +132,16 @@ difference (HashSet l) (HashSet r) = HashSet (M.difference l r)
 -- | Also known as cardinality, or length.
 size :: forall a. HashSet a -> Int
 size (HashSet m) = M.size m
+
+-- | Test whether a set is empty.
+-- |
+-- | `isEmpty s  ==  (s == empty)`
+isEmpty :: forall a. HashSet a -> Boolean
+isEmpty (HashSet m) = M.isEmpty m
+
+-- | Turn an array into a hash set.
+-- |
+-- | This uses a mutable hash map internally and is faster than
+-- | `fromFoldable`.
+fromArray :: forall a. Hashable a => Array a -> HashSet a
+fromArray = HashSet <<< M.fromArrayBy identity (const unit)
