@@ -15,6 +15,7 @@
         "purescript-enums": "^4.0.0",
         "purescript-functions": "^4.0.0",
         "purescript-integers": "^4.0.0",
+        "purescript-lists": "^5.4.0",
         "purescript-prelude": "^4.0.0",
         "purescript-record": "^1.0.0",
         "purescript-tuples": "^5.0.0"
