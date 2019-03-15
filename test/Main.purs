@@ -397,6 +397,11 @@ main = do
        all (\k -> not $ HS.member k md) mb
        <?> ("ma: " <> show ma <> "\nmb: " <> show mb <> "\nmd: " <> show md)
 
+  log "set fromArray agrees with fromFoldable"
+  quickCheck $ \(a :: Array CollidingInt) ->
+    let withfromFoldable = HS.fromFoldable a
+    in withfromFoldable == HS.fromArray a
+
   log "Array nub"
   quickCheck' 1000 $ \ (a :: Array CollidingInt) ->
     Array.nub a === HM.nubHash a
