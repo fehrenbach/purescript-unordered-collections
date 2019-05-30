@@ -24,8 +24,8 @@ import Data.Tuple (Tuple(..))
 import Prim.Row as Row
 import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
 import Record (get)
+import Type.Data.RowList (RLProxy(..))
 import Type.Prelude (class IsSymbol, SProxy(..))
-import Type.Row (RLProxy(..))
 
 -- | The `Hashable` type class represents types with decidable
 -- | equality and a hash function for use in hash-based algorithms and
