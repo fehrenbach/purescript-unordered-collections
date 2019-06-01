@@ -18,7 +18,8 @@
         "purescript-lists": "^5.4.1",
         "purescript-prelude": "^4.1.1",
         "purescript-record": "^2.0.1",
-        "purescript-tuples": "^5.1.0"
+        "purescript-tuples": "^5.1.0",
+        "purescript-typelevel-prelude": "^5.0.0"
     },
     "devDependencies": {
 	"purescript-foreign-object": "^2.0.2",
