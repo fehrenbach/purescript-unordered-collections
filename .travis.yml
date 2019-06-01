@@ -1,13 +1,6 @@
-language: node_js
-node_js: node
-dist: trusty
+language: nix
 sudo: required
-install:
-  - npm install -g bower purescript@^0.13.0 pulp
 script:
-  - bower install
-  - make
+  - nix-shell --command 'bower install && make'
 after_success:
-  - test $TRAVIS_TAG &&
-    echo $GITHUB_TOKEN | pulp login &&
-    echo y | pulp publish --no-push
+  - nix-shell --command "test $TRAVIS_TAG && echo $GITHUB_TOKEN | pulp login && echo y | pulp publish --no-push"
