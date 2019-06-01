@@ -51,7 +51,7 @@ import Prelude
 
 import Data.Foldable (class Foldable, foldl, foldlDefault, foldr, foldrDefault)
 import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndex, foldlWithIndexDefault, foldrWithIndexDefault)
-import Data.Function.Uncurried (Fn2, Fn3, runFn2, runFn3)
+import Data.Function.Uncurried (Fn2, Fn3, Fn4, Fn5, runFn2, runFn3, runFn4, runFn5)
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), fromJust, isJust)
@@ -123,11 +123,11 @@ foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> 
 -- | The empty map.
 foreign import empty :: forall k v. HashMap k v
 
-foreign import lookupPurs :: forall k v. Fn3 (k -> k -> Boolean) k Int (HashMap k v -> Maybe v)
+foreign import lookupPurs :: forall k v. Fn5 (forall a. Maybe a) (forall a. a -> Maybe a) (k -> k -> Boolean) k Int (HashMap k v -> Maybe v)
 
 -- | Get a value by key.
 lookup :: forall k v. Hashable k => k -> HashMap k v -> Maybe v
-lookup k = runFn3 lookupPurs (==) k (hash k)
+lookup k = runFn5 lookupPurs Nothing Just (==) k (hash k)
 
 foreign import insertPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) (k -> v -> HashMap k v -> HashMap k v)
 
@@ -301,15 +301,15 @@ unionWith f = runFn3 unionWithPurs eq hash f
 
 -- | Intersect two maps.
 intersection :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
-intersection = runFn3 intersectionWithPurs eq hash (\_ x -> x)
+intersection = intersectionWith (\_ x -> x)
 
-foreign import intersectionWithPurs :: forall k a b c. Fn3 (k -> k -> Boolean) (k -> Int) (a -> b -> c) (HashMap k a -> HashMap k b -> HashMap k c)
+foreign import intersectionWithPurs :: forall k a b c. Fn5 (forall x.Maybe x) (forall x.x -> Maybe x) (k -> k -> Boolean) (k -> Int) (a -> b -> c) (HashMap k a -> HashMap k b -> HashMap k c)
 
 -- | Intersect two maps, combining the values for keys that appear in both maps using the given function.
 -- |
 -- | `intersectionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 intersectionWith :: forall k a b c. Hashable k => (a -> b -> c) -> HashMap k a -> HashMap k b -> HashMap k c
-intersectionWith f = runFn3 intersectionWithPurs eq hash f
+intersectionWith f = runFn5 intersectionWithPurs Nothing Just eq hash f
 
 -- | Compute the difference of two maps, that is a new map of all the
 -- | mappings in the left map that do not have a corresponding key in
@@ -360,6 +360,6 @@ mapMaybeWithKey f = map (unsafePartial fromJust) <<< filter isJust <<< mapWithIn
 -- | Like `nub` from `Data.Array`, but uses a `Hashable` constraint
 -- | instead of an `Ord` constraint.
 nubHash :: forall a. Hashable a => Array a -> Array a
-nubHash = runFn2 nubHashPurs (==) hash
+nubHash = runFn4 nubHashPurs Nothing Just (==) hash
 
-foreign import nubHashPurs :: forall a. Fn2 (a -> a -> Boolean) (a -> Int) (Array a -> Array a)
+foreign import nubHashPurs :: forall a. Fn4 (forall x. Maybe x) (forall x. x -> Maybe x) (a -> a -> Boolean) (a -> Int) (Array a -> Array a)

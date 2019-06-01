@@ -4,13 +4,6 @@
 
 "use strict";
 
-// These are used in lookup. This is of course highly dependent on
-// PureScript codegen. It improves lookup performance by 25% though.
-var Data_Maybe = require("../Data.Maybe/index.js");
-// I'd like to use these, but purs bundle "optimises" them away :/
-// var Just = Data_Maybe.Just.create;
-// var Nothing = Data_Maybe.Nothing.value;
-
 /** @constructor */
 function MapNode(datamap, nodemap, content) {
     this.datamap = datamap;
@@ -18,18 +11,18 @@ function MapNode(datamap, nodemap, content) {
     this.content = content;
 }
 
-MapNode.prototype.lookup = function lookup(keyEquals, key, keyHash, shift) {
+MapNode.prototype.lookup = function lookup(Nothing, Just, keyEquals, key, keyHash, shift) {
     var bit = mask(keyHash, shift);
     if ((this.datamap & bit) !== 0) {
         var i = index(this.datamap, bit);
         if (keyEquals(key)(this.content[i * 2]))
-            return new Data_Maybe.Just(this.content[i * 2 + 1]);
-        return Data_Maybe.Nothing.value;
+            return new Just(this.content[i * 2 + 1]);
+        return Nothing;
     }
     if ((this.nodemap & bit) !== 0) {
-        return this.content[this.content.length - 1 - index(this.nodemap, bit)].lookup(keyEquals, key, keyHash, shift + 5);
+        return this.content[this.content.length - 1 - index(this.nodemap, bit)].lookup(Nothing, Just, keyEquals, key, keyHash, shift + 5);
     }
-    return Data_Maybe.Nothing.value;
+    return Nothing;
 }
 
 function remove2insert1Mut(a, removeIndex, insertIndex, v1) {
@@ -313,7 +306,7 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
     return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
 }
 
-MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+MapNode.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that, shift) {
     if (this.constructor !== that.constructor)
         throw "Trying to intersect a MapNode with something else";
 
@@ -339,7 +332,7 @@ MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
             thisNodeIndex = index(this.nodemap, bit);
             thatNodeIndex = index(that.nodemap, bit);
             var recRes = this.content[this.content.length - thisNodeIndex - 1]
-                .intersectionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
+                .intersectionWith(Nothing, Just, eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
             if (isEmpty(recRes)) continue;
             if (recRes.isSingleton()) {
                 datamap |= bit;
@@ -355,8 +348,8 @@ MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
             var k = this.content[thisDataIndex * 2];
             var v = this.content[thisDataIndex * 2 + 1];
             var hk = hash(k);
-            var res = that.content[that.content.length - thatNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-            if (res !== Data_Maybe.Nothing.value) {
+            var res = that.content[that.content.length - thatNodeIndex - 1].lookup(Nothing, Just, eq, k, hk, shift + 5);
+            if (res !== Nothing) {
                 datamap |= bit;
                 data.push(k, f(v)(res.value0));
             }
@@ -367,8 +360,8 @@ MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
             var k = that.content[thatDataIndex * 2];
             var v = that.content[thatDataIndex * 2 + 1];
             var hk = hash(k);
-            var res = this.content[this.content.length - thisNodeIndex - 1].lookup(eq, k, hk, shift + 5);
-            if (res !== Data_Maybe.Nothing.value) {
+            var res = this.content[this.content.length - thisNodeIndex - 1].lookup(Nothing, Just, eq, k, hk, shift + 5);
+            if (res !== Nothing) {
                 datamap |= bit;
                 data.push(k, f(res.value0)(v));
             }
@@ -490,11 +483,11 @@ function Collision(keys, values) {
     this.values = values;
 }
 
-Collision.prototype.lookup = function collisionLookup(keyEquals, key, keyHash, shift) {
+Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, key, keyHash, shift) {
     for (var i = 0; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
-            return new Data_Maybe.Just(this.values[i]);
-    return Data_Maybe.Nothing.value;
+            return new Just(this.values[i]);
+    return Nothing;
 };
 
 Collision.prototype.insert = function collisionInsert(keyEquals, hashFunction, key, keyHash, value, shift) {
@@ -640,7 +633,7 @@ Collision.prototype.unionWith = function (eq, hash, f, that, shift) {
     return new Collision(keys, values);
 }
 
-Collision.prototype.intersectionWith = function (eq, hash, f, that, shift) {
+Collision.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that, shift) {
     if (that.constructor !== Collision)
         throw "Trying to intersect a Collision with something else";
     var keys = [];
@@ -773,9 +766,9 @@ var empty = new MapNode(0,0,[]);
 
 exports.empty = empty;
 
-exports.lookupPurs = function (keyEquals, key, keyHash) {
+exports.lookupPurs = function (Nothing, Just, keyEquals, key, keyHash) {
     return function (m) {
-        return m.lookup(keyEquals, key, keyHash, 0);
+        return m.lookup(Nothing, Just, keyEquals, key, keyHash, 0);
     };
 };
 
@@ -831,10 +824,10 @@ exports.unionWithPurs = function (eq, hash, f) {
     };
 };
 
-exports.intersectionWithPurs = function (eq, hash, f) {
+exports.intersectionWithPurs = function (Nothing, Just, eq, hash, f) {
     return function (l) {
         return function (r) {
-            return l.intersectionWith(eq, hash, f, r, 0);
+            return l.intersectionWith(Nothing, Just, eq, hash, f, r, 0);
         };
     };
 };
@@ -913,14 +906,14 @@ exports.filterWithKey = function (f) {
     };
 };
 
-exports.nubHashPurs = function (eq, hash) {
+exports.nubHashPurs = function (Nothing, Just, eq, hash) {
     return function (a) {
         var m = new MapNode(0,0,[]);
         var r = [];
         for (var i = 0; i < a.length; i++) {
             var x = a[i];
             var hx = hash(x);
-            if (m.lookup(eq, x, hx, 0) !== Data_Maybe.Nothing.value)
+            if (m.lookup(Nothing, Just, eq, x, hx, 0) !== Nothing)
                 continue;
             m.insertMut(eq, hash, x, hx, null, 0);
             r.push(x);
