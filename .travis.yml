@@ -1,6 +1,7 @@
 language: nix
 sudo: required
 script:
+  - nix-shell --command 'bower install -p && make compile'
   - nix-shell --command 'bower install && make'
 after_success:
   - nix-shell --command "test $TRAVIS_TAG && echo $GITHUB_TOKEN | pulp login && echo y | pulp publish --no-push"
