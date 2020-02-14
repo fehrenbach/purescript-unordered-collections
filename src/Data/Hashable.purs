@@ -22,7 +22,7 @@ import Data.List (List)
 import Data.Maybe (Maybe(..))
 import Data.Tuple (Tuple(..))
 import Prim.Row as Row
-import Prim.RowList (class RowToList, Cons, Nil)
+import Prim.RowList (class RowToList, Cons, Nil, RowList)
 import Record (get)
 import Type.Data.RowList (RLProxy(..))
 import Type.Prelude (class IsSymbol, SProxy(..))
