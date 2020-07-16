@@ -1,7 +1,6 @@
 exports.table = function (t) {
     return function () {
         console.table(t);
-        return {};
     };
 };
 
