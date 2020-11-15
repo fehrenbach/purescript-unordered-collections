@@ -343,6 +343,11 @@ main = do
   quickCheck' 10000 \(a :: Array CollidingInt) ->
     HS.empty `HS.union` HS.fromFoldable a === HS.fromFoldable a
 
+  log "unions = foldl union empty"
+  quickCheck \(as :: Array (Array CollidingInt)) ->
+    let hss = map HS.fromFoldable as
+    in HS.unions hss === foldl HS.union HS.empty hss
+
   log "intersection with empty"
   quickCheck' 10000 \(a :: Array CollidingInt) ->
     HS.fromFoldable a `HS.intersection` HS.empty === HS.empty

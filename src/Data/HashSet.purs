@@ -17,6 +17,7 @@ module Data.HashSet (
   mapMaybe,
 
   union,
+  unions,
   intersection,
   difference,
 
@@ -26,16 +27,19 @@ module Data.HashSet (
 
   fromArray,
   fromFoldable,
-  toArray
+  toArray,
+  toUnfoldable
   ) where
 
 import Prelude hiding (map)
 
-import Data.Foldable (class Foldable, foldr)
+import Data.Array as Array
+import Data.Foldable (class Foldable, foldr, fold)
 import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap as M
 import Data.Hashable (class Hashable)
 import Data.Maybe (Maybe(..))
+import Data.Unfoldable (class Unfoldable)
 
 -- | A `HashSet a` is a set with elements of type `a`.
 -- |
@@ -120,6 +124,10 @@ mapMaybe f =
 union :: forall a. Hashable a => HashSet a -> HashSet a -> HashSet a
 union (HashSet l) (HashSet r) = HashSet (M.unionWith const l r)
 
+-- | Union a collection of sets.
+unions :: forall f a. Foldable f => Hashable a => f (HashSet a) -> HashSet a
+unions = fold
+
 -- | Intersect two sets.
 intersection :: forall a. Hashable a => HashSet a -> HashSet a -> HashSet a
 intersection (HashSet l) (HashSet r) = HashSet (M.intersectionWith const l r)
@@ -149,3 +157,10 @@ isEmpty (HashSet m) = M.isEmpty m
 -- | `fromFoldable`.
 fromArray :: forall a. Hashable a => Array a -> HashSet a
 fromArray = HashSet <<< M.fromArrayBy identity (const unit)
+
+-- | Turn a set into an unfoldable functor.
+-- |
+-- | You probably want to use `toArray` instead, especially if you
+-- | want to get an array out.
+toUnfoldable :: forall f a. Unfoldable f => HashSet a -> f a
+toUnfoldable = Array.toUnfoldable <<< toArray
