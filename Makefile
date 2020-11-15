@@ -1,4 +1,4 @@
-.PHONY: compile bench bench-trace test test-bundle
+.PHONY: clean compile bench bench-trace test test-bundle
 
 SOURCES = $(shell find src/)
 BENCH_SOURCES = $(shell find bench/)
@@ -28,3 +28,6 @@ test: output/Test.Main/index.js
 test-bundle: output/Test.Main/index.js
 	purs bundle 'output/**/*.js' --output test-bundle.js --module Test.Main --main Test.Main
 	node test-bundle.js
+
+clean:
+	rm -rf bower_components/ output/
