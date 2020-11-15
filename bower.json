@@ -12,6 +12,7 @@
         "output"
     ],
     "dependencies": {
+        "purescript-arrays": "^5.0.0",
         "purescript-enums": "^4.0.1",
         "purescript-functions": "^4.0.0",
         "purescript-integers": "^4.0.0",
@@ -19,7 +20,8 @@
         "purescript-prelude": "^4.1.1",
         "purescript-record": "^2.0.1",
         "purescript-tuples": "^5.1.0",
-        "purescript-typelevel-prelude": "^5.0.0"
+        "purescript-typelevel-prelude": "^5.0.0",
+        "purescript-unfoldable": "^4.0.0"
     },
     "devDependencies": {
 	"purescript-foreign-object": "^2.0.2",
