@@ -92,6 +92,12 @@ instance functorWithIndexHashMap :: FunctorWithIndex k (HashMap k) where
 
 foreign import mapWithIndexPurs :: forall k v w. (k -> v -> w) -> HashMap k v -> HashMap k w
 
+instance applyHashMap :: Hashable k => Apply (HashMap k) where
+  apply = intersectionWith identity
+
+instance bindHashMap :: Hashable k => Bind (HashMap k) where
+  bind m f = mapMaybeWithKey (\k -> lookup k <<< f) m
+
 -- | The `Foldable` instance is best used with a *commutative*
 -- | function/`Monoid`, since hash maps do not guarantee any
 -- | particular order.
