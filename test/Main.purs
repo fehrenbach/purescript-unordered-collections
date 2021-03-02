@@ -8,6 +8,7 @@ import Prelude
 
 import Data.Array as A
 import Data.Array as Array
+import Data.Array.NonEmpty (fromNonEmpty)
 import Data.Foldable (all, foldMap, foldl, foldr)
 import Data.FoldableWithIndex (allWithIndex, foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
@@ -36,7 +37,7 @@ data Op k v
   | Insert k v
 
 instance arbOp :: (Arbitrary k, Arbitrary v) => Arbitrary (Op k v) where
-  arbitrary = oneOf $ (Insert <$> arbitrary <*> arbitrary) :| [Lookup <$> arbitrary]
+  arbitrary = oneOf $ fromNonEmpty $ (Insert <$> arbitrary <*> arbitrary) :| [Lookup <$> arbitrary]
 
 -- TODO need a better test type. I want a good range of hash values (sign bit set and not set,...) but not so many that we never have collisions. Also want just not so many values (not hashes) so that we test duplicate paths in insertion, unionWith and stuff..
 newtype CollidingInt = CollidingInt Int
