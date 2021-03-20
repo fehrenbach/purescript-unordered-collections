@@ -68,6 +68,8 @@ import Partial.Unsafe (unsafePartial)
 -- | Note that this is an *unordered* collection.
 foreign import data HashMap :: Type -> Type -> Type
 
+type role HashMap nominal representational
+
 foreign import eqPurs :: forall k v. Fn2 (k -> k -> Boolean) (v -> v -> Boolean) (HashMap k v -> HashMap k v -> Boolean)
 
 instance eqHashMap :: (Eq k, Eq v) => Eq (HashMap k v) where
