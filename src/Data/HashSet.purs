@@ -27,7 +27,9 @@ module Data.HashSet (
 
   fromArray,
   fromFoldable,
+  fromMap,
   toArray,
+  toMap,
   toUnfoldable
   ) where
 
@@ -167,3 +169,9 @@ fromArray = HashSet <<< M.fromArrayBy identity (const unit)
 -- | want to get an array out.
 toUnfoldable :: forall f a. Unfoldable f => HashSet a -> f a
 toUnfoldable = Array.toUnfoldable <<< toArray
+
+toMap :: forall a. HashSet a -> M.HashMap a Unit
+toMap (HashSet m) = m
+
+fromMap :: forall a. M.HashMap a Unit -> HashSet a
+fromMap = HashSet
