@@ -161,11 +161,11 @@ main = do
          "\ngot     : " <> show (HM.delete k (HM.insert k v m)) <>
          "\ninserted: " <> show (HM.insert k v m))
 
-  log "fromFoldable (b <> a) = fromFoldable a <> fromFoldable b"
+  log "fromFoldable (b <> a) = fromFoldable a `union` fromFoldable b"
   quickCheck' 1000 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HM.fromFoldable (b <> a) === HM.fromFoldable a <> HM.fromFoldable b
+    HM.fromFoldable (b <> a) === HM.fromFoldable a `HM.union` HM.fromFoldable b
   quickCheckWithSeed (mkSeed 376236318) 1 \ a (b :: Array (Tuple CollidingInt String)) ->
-    HM.fromFoldable (b <> a) == HM.fromFoldable a <> HM.fromFoldable b
+    HM.fromFoldable (b <> a) == HM.fromFoldable a `HM.union` HM.fromFoldable b
     <?> (  "   a: " <> show a <>
          "\n   b: " <> show b <>
          "\n hma: " <> show (HM.fromFoldable a) <>

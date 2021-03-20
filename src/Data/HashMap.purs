@@ -42,6 +42,8 @@ module Data.HashMap (
   intersectionWith,
   difference,
 
+  SemigroupHashMap(..),
+
   nubHash,
 
   debugShow
@@ -55,6 +57,7 @@ import Data.Function.Uncurried (Fn2, Fn3, Fn4, Fn5, runFn2, runFn3, runFn4, runF
 import Data.FunctorWithIndex (class FunctorWithIndex, mapWithIndex)
 import Data.Hashable (class Hashable, hash)
 import Data.Maybe (Maybe(..), fromJust, isJust)
+import Data.Newtype (class Newtype)
 import Data.Traversable (class Traversable, traverse)
 import Data.TraversableWithIndex (class TraversableWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..), fst, snd)
@@ -75,14 +78,8 @@ instance hashHashMap :: (Hashable k, Hashable v) => Hashable (HashMap k v) where
 
 foreign import hashPurs :: forall k v. (v -> Int) -> HashMap k v -> Int
 
-instance monoidHashMap :: Hashable k => Monoid (HashMap k v) where
-  mempty = empty
-
--- | This is "the shallow" semigroup instance, where maps themselves
--- | are combined using `union` rather than elements being combined.
--- | For duplicate keys, values from the left map are preserved.
-instance semigroupHashMap :: Hashable k => Semigroup (HashMap k v) where
-  append = union
+-- instance monoidHashMap :: Hashable k => Monoid (HashMap k v) where
+--   mempty = empty
 
 instance functorHashMap :: Functor (HashMap k) where
   map f = mapWithIndex (const f)
@@ -125,6 +122,42 @@ instance traversableWithIndexHashMap :: TraversableWithIndex k (HashMap k) where
   traverseWithIndex f m = traverseWithIndexPurs pure apply f m
 
 foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> (forall a b. m (a -> b) -> m a -> m b) -> (k -> v -> m w) -> HashMap k v -> m (HashMap k w)
+
+
+-- | This newtype provides a `Semigroup` instance for `HashMap k v`
+-- | which delegates to the `Semigroup v` instance of elements.
+-- |
+-- | This is part of the following migration process:
+-- | 1. Add `SemigroupHashMap` with the new `Semigroup` instance and remove old instance from `HashMap`.
+-- |
+-- |    The new instance uses `unionWith append` instead of `union`.
+-- |    You can recover the previous, left-biased behaviour by using
+-- |    `SemigroupHashMap k (First v)` in place of `HashMap k v`.
+-- |
+-- | 2. Add new `Semigroup` instance to `HashMap` and deprecate `SemigroupHashMap`.
+-- | 3. Remove `SemigroupHashMap`.
+newtype SemigroupHashMap k v = SemigroupHashMap (HashMap k v)
+
+
+derive instance newtypeSemigroupHashMap :: Newtype (SemigroupHashMap k v) _
+derive newtype instance eqSemigroupHashMap :: (Eq k, Eq v) => Eq (SemigroupHashMap k v)
+derive newtype instance hashSemigroupHashMap :: (Hashable k, Hashable v) => Hashable (SemigroupHashMap k v)
+-- derive newtype instance monoidSemigroupHashMap :: Hashable k => Monoid (SemigroupHashMap k v)
+derive newtype instance functorSemigroupHashMap :: Functor (SemigroupHashMap k)
+derive newtype instance functorWithIndexSemigroupHashMap :: FunctorWithIndex k (SemigroupHashMap k)
+derive newtype instance applySemigroupHashMap :: Hashable k => Apply (SemigroupHashMap k)
+derive newtype instance bindSemigroupHashMap :: Hashable k => Bind (SemigroupHashMap k)
+derive newtype instance foldableSemigroupHashMap :: Foldable (SemigroupHashMap k)
+derive newtype instance foldableWithIndexSemigroupHashMap :: FoldableWithIndex k (SemigroupHashMap k)
+derive newtype instance traversableSemigroupHashMap :: Traversable (SemigroupHashMap k)
+derive newtype instance traversableWithIndexSemigroupHashMap :: TraversableWithIndex k (SemigroupHashMap k)
+derive newtype instance showSemigroupHashMap :: (Show k, Show v) => Show (SemigroupHashMap k v)
+
+instance semigroupSemigroupHashMap :: (Hashable k, Semigroup v) => Semigroup (SemigroupHashMap k v) where
+  append (SemigroupHashMap l) (SemigroupHashMap r) = SemigroupHashMap (unionWith append l r)
+
+instance monoidSemigroupHashMap :: (Hashable k, Semigroup v) => Monoid (SemigroupHashMap k v) where
+  mempty = SemigroupHashMap empty
 
 -- | The empty map.
 foreign import empty :: forall k v. HashMap k v
@@ -292,8 +325,6 @@ foreign import size :: forall k v. HashMap k v -> Int
 -- | Union two maps.
 -- |
 -- | For duplicate keys, we keep the value from the left map.
--- |
--- | This is the same as `Semigroup.append` aka `(<>)`.
 union :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
 union = runFn3 unionWithPurs eq hash const
 
