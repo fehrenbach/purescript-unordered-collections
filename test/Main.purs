@@ -113,11 +113,6 @@ main = do
     then log "passed"
     else throw "failed"
 
-  log "upsert = insertWith (const f)"
-  quickCheck $ \f k v (a :: Array (Tuple SmallInt Int)) ->
-    let m = arbitraryHM a
-    in HM.upsert f k v m === HM.insertWith (const f) k v m
-
   log "Recheck #28"
   nowGood' gh28
 
