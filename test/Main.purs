@@ -115,6 +115,7 @@ main = do
 
   log "Recheck #28"
   nowGood' gh28
+  nowGood' gh28'
 
   log "toArrayBy"
   quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
@@ -461,3 +462,6 @@ t249 = let k = 855538
 
 gh28 :: Boolean
 gh28 = (HM.singleton 'x' 10 # HM.upsert (_ + 1) 'x' 1) == HM.singleton 'x' 11
+
+gh28' :: Boolean
+gh28' = (HM.singleton 'y' 10 # HM.upsert (_ + 1) 'x' 1) == HM.fromArray [Tuple 'x' 1, Tuple 'y' 10]
