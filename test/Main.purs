@@ -118,6 +118,9 @@ main = do
     let m = arbitraryHM a
     in HM.upsert f k v m === HM.insertWith (const f) k v m
 
+  log "Recheck #28"
+  nowGood' gh28
+
   log "toArrayBy"
   quickCheck' 10000 $ \ (a :: Array (Tuple CollidingInt Int)) ->
     let nubA = A.nubBy (\x y -> fst x `compare` fst y) a
@@ -460,3 +463,6 @@ t249 = let k = 855538
            a = [(Tuple 359452 false),(Tuple 903388 false)]
            m = arbitraryHM a in
        HM.delete k (HM.insert k v m) == m
+
+gh28 :: Boolean
+gh28 = (HM.singleton 'x' 10 # HM.upsert (_ + 1) 'x' 1) == HM.singleton 'x' 11
