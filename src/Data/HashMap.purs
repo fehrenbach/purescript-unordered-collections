@@ -317,7 +317,7 @@ update f = alter (_ >>= f)
 -- | and the new value, especially if you find yourself writing
 -- | `upsert (f v) k v`, consider using `insertWith` instead.
 upsert :: forall k v. Hashable k => (v -> v) -> k -> v -> HashMap k v -> HashMap k v
-upsert f = insertWith (\_ v -> f v)
+upsert f = insertWith (\v _ -> f v)
 
 -- | Returns the number of key-value pairs in a map.
 -- |
