@@ -180,7 +180,8 @@ insert = runFn2 insertPurs (==) hash
 
 foreign import insertWithPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) ((v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v)
 
--- | Insert or update a value with the given function.
+-- | Insert the new value if the key doesn't exist, otherwise combine
+-- | the existing and new values.
 -- |
 -- | The combining function is called with the existing value as the
 -- | first argument and the new value as the second argument.
@@ -189,9 +190,8 @@ foreign import insertWithPurs :: forall k v. Fn2 (k -> k -> Boolean) (k -> Int) 
 -- | insertWith (<>) 5 "b" (singleton 5 "a") == singleton 5 "ab"
 -- | ```
 -- |
--- | If your update function does not use the existing value,
--- | especially if you find yourself writing `insertWith (const f)`,
--- | consider using `upsert` instead.
+-- | If your update function does not use the existing value, consider
+-- | using `upsert` instead.
 insertWith :: forall k v. Hashable k => (v -> v -> v) -> k -> v -> HashMap k v -> HashMap k v
 insertWith = runFn2 insertWithPurs (==) hash
 
@@ -311,11 +311,11 @@ alter f k m = case f (lookup k m) of
 update :: forall k v. Hashable k => (v -> Maybe v) -> k -> HashMap k v -> HashMap k v
 update f = alter (_ >>= f)
 
--- | Insert or update a value.
+-- | Insert a new value if it doesn't exist or update the existing
+-- | value by applying a function to it.
 -- |
--- | If your update function uses both the previously existing value
--- | and the new value, especially if you find yourself writing
--- | `upsert (f v) k v`, consider using `insertWith` instead.
+-- | If you need to combine the new value with the existing value
+-- | consider using `insertWith` instead.
 upsert :: forall k v. Hashable k => (v -> v) -> k -> v -> HashMap k v -> HashMap k v
 upsert f = insertWith (\v _ -> f v)
 
