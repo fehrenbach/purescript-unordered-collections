@@ -117,7 +117,7 @@ instance hashableRecordCons ::
   , IsSymbol l
   , Row.Cons l vt whatev r
   ) => HashableRecord (Cons l vt tl) r where
-  hashRecord rlp record = hash (get (SProxy :: SProxy l) record) * 31 + hashRecord (RLProxy :: RLProxy tl) record
+  hashRecord _ record = hash (get (SProxy :: SProxy l) record) * 31 + hashRecord (RLProxy :: RLProxy tl) record
 
 instance hashableRecord ::
   (RowToList r l, HashableRecord l r, EqRecord l r)

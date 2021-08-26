@@ -1,6 +1,6 @@
 let
   pkgs = import <nixpkgs> {};
-  easy-ps = import (fetchTarball https://github.com/justinwoo/easy-purescript-nix/archive/3b4039475c245243716b1e922455a9062c0531da.tar.gz) { inherit pkgs; };
+  easy-ps = import (fetchTarball https://github.com/justinwoo/easy-purescript-nix/archive/d0f592b71b2be222f8dcfb4f4cefb52608bbc1ae.tar.gz) { inherit pkgs; };
 in pkgs.stdenv.mkDerivation {
   name = "purescript-unordered-collections-shell";
   buildInputs = [

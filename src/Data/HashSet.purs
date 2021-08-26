@@ -116,7 +116,7 @@ map f = foldr (\x -> insert (f x)) empty
 -- |
 -- | `filter (const false) s == empty`
 filter :: forall a. (a -> Boolean) -> HashSet a -> HashSet a
-filter f (HashSet m) = HashSet (M.filterWithKey (\k v -> f k) m)
+filter f (HashSet m) = HashSet (M.filterWithKey (\k _ -> f k) m)
 
 -- | Map a function over a set, keeping only the `Just` values.
 mapMaybe :: forall a b. Hashable b => (a -> Maybe b) -> HashSet a -> HashSet b

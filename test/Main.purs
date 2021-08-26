@@ -70,7 +70,7 @@ prop ::
   Show k => Ord k => Hashable k =>
   List (Op k v) -> Result
 prop = go OM.empty HM.empty
-  where go m hm Nil = Success
+  where go _ _ Nil = Success
         go m hm (Cons (Lookup k) rest) =
           let res = OM.lookup k m === HM.lookup k hm
           in case res of

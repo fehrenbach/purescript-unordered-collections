@@ -377,7 +377,7 @@ foreign import filterWithKey :: forall k v. (k -> v -> Boolean) -> HashMap k v -
 -- |
 -- | `difference m1 m2 == filterKeys (\k -> member k m2) m1`
 filterKeys :: forall k v. (k -> Boolean) -> HashMap k v -> HashMap k v
-filterKeys f = filterWithKey (\k v -> f k)
+filterKeys f = filterWithKey (\k _ -> f k)
 
 -- | Apply a function to all values in a hash map, discard the
 -- | `Nothing` results, and keep the value of the `Just` results.
