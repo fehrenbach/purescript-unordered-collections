@@ -80,8 +80,11 @@ instance hashHashMap :: (Hashable k, Hashable v) => Hashable (HashMap k v) where
 
 foreign import hashPurs :: forall k v. (v -> Int) -> HashMap k v -> Int
 
--- instance monoidHashMap :: Hashable k => Monoid (HashMap k v) where
---   mempty = empty
+instance monoidHashMap :: (Hashable k, Semigroup v) => Monoid (HashMap k v) where
+  mempty = empty
+
+instance semigroupHashMap :: (Hashable k, Semigroup v) => Semigroup (HashMap k v) where
+  append = unionWith append
 
 instance functorHashMap :: Functor (HashMap k) where
   map f = mapWithIndex (const f)
@@ -127,9 +130,11 @@ foreign import traverseWithIndexPurs :: forall k v w m. (forall a. a -> m a) -> 
 
 
 -- | This newtype provides a `Semigroup` instance for `HashMap k v`
--- | which delegates to the `Semigroup v` instance of elements.
+-- | which delegates to the `Semigroup v` instance of elements. This
+-- | newtype is deprecated and will be removed in the next major
+-- | version. Use `HashMap` instead.
 -- |
--- | We are currently in step 1 of the following migration process:
+-- | We are currently in step 2 of the following migration process:
 -- | 1. Add `SemigroupHashMap` with the new `Semigroup` instance and remove old instance from `HashMap`.
 -- |
 -- |    The new instance uses `unionWith append` instead of `union`.
