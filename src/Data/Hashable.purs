@@ -24,8 +24,8 @@ import Data.Tuple (Tuple(..))
 import Prim.Row as Row
 import Prim.RowList (class RowToList, Cons, Nil)
 import Record (get)
-import Type.Data.RowList (RLProxy(..))
-import Type.Prelude (class IsSymbol, SProxy(..))
+import Type.Prelude (class IsSymbol)
+import Type.Proxy (Proxy(..))
 
 -- | The `Hashable` type class represents types with decidable
 -- | equality and a hash function for use in hash-based algorithms and
@@ -106,7 +106,7 @@ instance hashableVoid :: Hashable Void where
 --   hash = fromEnum
 
 class EqRecord l r <= HashableRecord l r | l -> r where
-  hashRecord :: RLProxy l -> Record r -> Int
+  hashRecord :: Proxy l -> Record r -> Int
 
 instance hashableRecordNil :: HashableRecord Nil r where
   hashRecord _ _ = 0
@@ -117,11 +117,11 @@ instance hashableRecordCons ::
   , IsSymbol l
   , Row.Cons l vt whatev r
   ) => HashableRecord (Cons l vt tl) r where
-  hashRecord _ record = hash (get (SProxy :: SProxy l) record) * 31 + hashRecord (RLProxy :: RLProxy tl) record
+  hashRecord _ record = hash (get (Proxy :: Proxy l) record) * 31 + hashRecord (Proxy :: Proxy tl) record
 
 instance hashableRecord ::
   (RowToList r l, HashableRecord l r, EqRecord l r)
   => Hashable (Record r) where
-  hash = hashRecord (RLProxy :: RLProxy l)
+  hash = hashRecord (Proxy :: Proxy l)
 
 -- TODO add combinators and a generics-rep implementation

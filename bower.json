@@ -12,23 +12,23 @@
         "output"
     ],
     "dependencies": {
-        "purescript-arrays": "^6.0.0",
-        "purescript-enums": "^5.0.0",
-        "purescript-functions": "^5.0.0",
-        "purescript-integers": "^5.0.0",
-        "purescript-lists": "^6.0.0",
-        "purescript-prelude": "^5.0.0",
-        "purescript-record": "^3.0.0",
-        "purescript-tuples": "^6.0.0",
-        "purescript-typelevel-prelude": "^6.0.0",
-        "purescript-unfoldable": "^5.0.0"
+        "purescript-arrays": "^7.0.0",
+        "purescript-enums": "^6.0.0",
+        "purescript-functions": "^6.0.0",
+        "purescript-integers": "^6.0.0",
+        "purescript-lists": "^7.0.0",
+        "purescript-prelude": "^6.0.0",
+        "purescript-record": "^4.0.0",
+        "purescript-tuples": "^7.0.0",
+        "purescript-typelevel-prelude": "^7.0.0",
+        "purescript-unfoldable": "^6.0.0"
     },
     "devDependencies": {
-	"purescript-foreign-object": "^3.0.0",
-        "purescript-minibench": "^3.0.0",
-        "purescript-ordered-collections": "^2.0.0",
-        "purescript-psci-support": "^5.0.0",
-        "purescript-quickcheck": "^7.0.0",
-        "purescript-st": "v5.0.0"
+	"purescript-foreign-object": "^4.0.0",
+        "purescript-minibench": "^4.0.0",
+        "purescript-ordered-collections": "^3.0.0",
+        "purescript-psci-support": "^6.0.0", 
+        "purescript-quickcheck": "^8.0.0",
+        "purescript-st": "^6.0.0"
     }
 }
