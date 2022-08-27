@@ -16,7 +16,7 @@ MapNode.prototype.lookup = function lookup(Nothing, Just, keyEquals, key, keyHas
     if ((this.datamap & bit) !== 0) {
         var i = index(this.datamap, bit);
         if (keyEquals(key)(this.content[i * 2]))
-            return new Just(this.content[i * 2 + 1]);
+            return Just(this.content[i * 2 + 1]);
         return Nothing;
     }
     if ((this.nodemap & bit) !== 0) {
@@ -486,7 +486,7 @@ function Collision(keys, values) {
 Collision.prototype.lookup = function collisionLookup(Nothing, Just, keyEquals, key, keyHash, shift) {
     for (var i = 0; i < this.keys.length; i++)
         if (keyEquals(key)(this.keys[i]))
-            return new Just(this.values[i]);
+            return Just(this.values[i]);
     return Nothing;
 };
 
