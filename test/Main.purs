@@ -437,6 +437,19 @@ main = do
       Just false -> HM.lookup k mc === HM.lookup k my
       Nothing -> false === HM.member k my
 
+  log "any"
+  quickCheck' 10000 $ \(a :: Array (Tuple Int Int)) ->
+    let hm = HM.fromFoldable a
+        xs = HM.toArrayBy Tuple hm
+    in  (not (HM.any (\_ -> true) HM.empty)) &&
+        case A.head xs of
+          Nothing -> true
+          Just h  -> case A.last xs of
+            Nothing -> true
+            Just l  -> HM.any (\x -> x == snd h) hm
+                    && HM.any (\x -> x == snd l) hm
+                    && (not (HM.any (\_ -> false) hm))
+
   log "Done."
 
 t54 :: Boolean

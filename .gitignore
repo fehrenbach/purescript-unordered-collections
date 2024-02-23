@@ -7,3 +7,4 @@
 /.purs*
 /.psa*
 test-bundle.js
+.spago

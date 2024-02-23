@@ -477,6 +477,37 @@ MapNode.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
+MapNode.prototype.any = function (predicate, shift) {
+  var dataMap = this.datamap;
+  var nodeMap = this.nodemap;
+
+  while (dataMap !== 0) {
+      var bit = lowestBit(dataMap);
+      var dataIndex = index(this.datamap, bit);
+      var value = this.content[dataIndex * 2 + 1];
+
+      if (predicate(value)) {
+          return true;
+      }
+
+      dataMap &= ~bit;
+  }
+
+  while (nodeMap !== 0) {
+      var bit = lowestBit(nodeMap);
+      var nodeIndex = index(this.nodemap, bit);
+      var subNode = this.content[this.content.length - nodeIndex - 1];
+
+      if (subNode.any(predicate, shift + 5)) {
+          return true;
+      }
+
+      nodeMap &= ~bit;
+  }
+
+  return false;
+};
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -916,4 +947,10 @@ export function nubHashPurs(Nothing, Just, eq, hash) {
         }
         return r;
     };
+};
+
+export function anyPurs(pred) {
+  return function (m) {
+      return m.any(pred, 0);
+  };
 };
