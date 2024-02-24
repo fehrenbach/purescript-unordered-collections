@@ -477,32 +477,21 @@ MapNode.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
-MapNode.prototype.any = function (predicate, shift) {
-  var dataMap = this.datamap;
-  var nodeMap = this.nodemap;
+MapNode.prototype.any = function (predicate, level = 0) {
+  for (var i = 1; i < popCount(this.datamap) * 2; i = i + 2) {
+    var v = this.content[i];
 
-  while (dataMap !== 0) {
-      var bit = lowestBit(dataMap);
-      var dataIndex = index(this.datamap, bit);
-      var value = this.content[dataIndex * 2 + 1];
-
-      if (predicate(value)) {
-          return true;
-      }
-
-      dataMap &= ~bit;
+    if (predicate(v)) {
+        return true;
+    }
   }
 
-  while (nodeMap !== 0) {
-      var bit = lowestBit(nodeMap);
-      var nodeIndex = index(this.nodemap, bit);
-      var subNode = this.content[this.content.length - nodeIndex - 1];
+  i--;
 
-      if (subNode.any(predicate, shift + 5)) {
-          return true;
-      }
-
-      nodeMap &= ~bit;
+  for (; i < this.content.length; i++) {
+    if (this.content[i].any(predicate, level + 1)) {
+      return true;
+    }
   }
 
   return false;
@@ -709,6 +698,15 @@ Collision.prototype.filterWithKey = function collisionFilterWithKey(f) {
     if (keys.length === 1) return new MapNode(1, 0, [keys[0], values[0]]);
     return new Collision(keys, values);
 }
+
+Collision.prototype.any = function (predicate) {
+  for (var i = 0; i < this.keys.length; i++) {
+    if (predicate(this.values[i])) {
+      return true;
+    }
+  }
+  return false;
+};
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
