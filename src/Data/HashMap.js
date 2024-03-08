@@ -477,7 +477,7 @@ MapNode.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
-MapNode.prototype.any = function (predicate, level = 0) {
+MapNode.prototype.any = function (predicate) {
   for (var i = 1; i < popCount(this.datamap) * 2; i = i + 2) {
     var v = this.content[i];
 
@@ -489,7 +489,7 @@ MapNode.prototype.any = function (predicate, level = 0) {
   i--;
 
   for (; i < this.content.length; i++) {
-    if (this.content[i].any(predicate, level + 1)) {
+    if (this.content[i].any(predicate)) {
       return true;
     }
   }

@@ -9,7 +9,7 @@ import Prelude
 import Data.Array as A
 import Data.Array as Array
 import Data.Array.NonEmpty (fromNonEmpty)
-import Data.Foldable (all, foldMap, foldl, foldr)
+import Data.Foldable (all, foldMap, foldl, foldr, any)
 import Data.FoldableWithIndex (allWithIndex, foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
