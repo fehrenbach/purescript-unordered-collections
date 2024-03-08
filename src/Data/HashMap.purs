@@ -414,6 +414,6 @@ foreign import anyPurs :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
 
 -- | Returns true if at least one HashMap element satisfies the given predicate, iterating the HashMap only as necessary and stopping as soon as the predicate yields true.
 -- |
--- | Use this function instead of `Foldable.any`` for more performance.
+-- | Use this function instead of `Foldable.any` for more performance.
 any :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
 any = anyPurs

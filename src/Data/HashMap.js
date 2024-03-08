@@ -949,6 +949,6 @@ export function nubHashPurs(Nothing, Just, eq, hash) {
 
 export function anyPurs(pred) {
   return function (m) {
-      return m.any(pred, 0);
+      return m.any(pred);
   };
 };
