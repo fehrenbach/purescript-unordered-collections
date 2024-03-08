@@ -9,7 +9,7 @@ import Prelude
 import Data.Array as A
 import Data.Array as Array
 import Data.Array.NonEmpty (fromNonEmpty)
-import Data.Foldable (all, foldMap, foldl, foldr)
+import Data.Foldable (all, foldMap, foldl, foldr, any)
 import Data.FoldableWithIndex (allWithIndex, foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap (HashMap)
 import Data.HashMap as HM
@@ -436,6 +436,26 @@ main = do
       Just true -> HM.lookup k mb === HM.lookup k my
       Just false -> HM.lookup k mc === HM.lookup k my
       Nothing -> false === HM.member k my
+
+  log "any"
+  quickCheck' 10000 $ \(a :: Array (Tuple Int Int)) ->
+    let hm = HM.fromFoldable a
+        xs = HM.toArrayBy Tuple hm
+    in  (not (HM.any (\_ -> true) HM.empty)) &&
+        case A.head xs of
+          Nothing -> true
+          Just h  -> case A.last xs of
+            Nothing -> true
+            Just l  -> HM.any (\x -> x == snd h) hm
+                    && HM.any (\x -> x == snd l) hm
+                    && (not (HM.any (\_ -> false) hm))
+
+  log "any agrees with Foldable any"
+  quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (f :: Int -> Boolean) ->
+    let m = HM.fromArray a
+        f' (Tuple _ v) = f v
+    -- use array instance, so we still test something useful if any ever becomes a method on Foldable
+    in  any f' a === HM.any f m
 
   log "Done."
 

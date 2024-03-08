@@ -477,6 +477,26 @@ MapNode.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
+MapNode.prototype.any = function (predicate) {
+  for (var i = 1; i < popCount(this.datamap) * 2; i = i + 2) {
+    var v = this.content[i];
+
+    if (predicate(v)) {
+        return true;
+    }
+  }
+
+  i--;
+
+  for (; i < this.content.length; i++) {
+    if (this.content[i].any(predicate)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -678,6 +698,15 @@ Collision.prototype.filterWithKey = function collisionFilterWithKey(f) {
     if (keys.length === 1) return new MapNode(1, 0, [keys[0], values[0]]);
     return new Collision(keys, values);
 }
+
+Collision.prototype.any = function (predicate) {
+  for (var i = 0; i < this.keys.length; i++) {
+    if (predicate(this.values[i])) {
+      return true;
+    }
+  }
+  return false;
+};
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -916,4 +945,10 @@ export function nubHashPurs(Nothing, Just, eq, hash) {
         }
         return r;
     };
+};
+
+export function anyPurs(pred) {
+  return function (m) {
+      return m.any(pred);
+  };
 };
