@@ -1,0 +1,36 @@
+package:
+  name: unordered-collections
+  publish:
+    license: MPL-2.0
+    version: 3.1.0
+    location:
+      githubOwner: fehrenbach
+      githubRepo: purescript-unordered-collections
+  dependencies:
+    - arrays
+    - either
+    - enums
+    - foldable-traversable
+    - functions
+    - integers
+    - lists
+    - maybe
+    - newtype
+    - partial
+    - record
+    - tuples
+    - unfoldable
+    - prelude
+  test:
+    main: Test.Main
+    dependencies:
+      - console
+      - effect
+      - exceptions
+      - nonempty
+      - ordered-collections
+      - quickcheck
+workspace:
+  packageSet:
+    registry: 64.2.0
+  extraPackages: {}
