@@ -24,7 +24,7 @@ import Data.Tuple (Tuple(..))
 import Prim.Row as Row
 import Prim.RowList (class RowToList, Cons, Nil)
 import Record (get)
-import Type.Prelude (class IsSymbol)
+import Data.Symbol (class IsSymbol)
 import Type.Proxy (Proxy(..))
 
 -- | The `Hashable` type class represents types with decidable
