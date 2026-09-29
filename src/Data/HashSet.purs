@@ -2,36 +2,31 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-module Data.HashSet (
-  HashSet,
-
-  empty,
-  singleton,
-
-  insert,
-  member,
-  delete,
-
-  map,
-  filter,
-  mapMaybe,
-
-  union,
-  unions,
-  intersection,
-  difference,
-
-  size,
-
-  isEmpty,
-
-  fromArray,
-  fromFoldable,
-  fromMap,
-  toArray,
-  toMap,
-  toUnfoldable
-  ) where
+module Data.HashSet
+  ( HashSet
+  , any
+  , delete
+  , difference
+  , empty
+  , filter
+  , fromArray
+  , fromFoldable
+  , fromMap
+  , insert
+  , intersection
+  , isEmpty
+  , map
+  , mapMaybe
+  , member
+  , singleton
+  , size
+  , toArray
+  , toMap
+  , toUnfoldable
+  , union
+  , unions
+  )
+  where
 
 import Prelude hiding (map)
 
@@ -175,3 +170,8 @@ toMap (HashSet m) = m
 
 fromMap :: forall a. M.HashMap a Unit -> HashSet a
 fromMap = HashSet
+
+-- | Returns true if at least one HashSet element satisfies the given predicate, iterating the HashMap only as necessary and stopping as soon as the predicate yields true.
+-- | Calls a specialized `HashMap.any` instead of `Foldable.any` for more performance.
+any :: forall a. (a -> Boolean) -> HashSet a -> Boolean
+any f (HashSet m) = M.anyKey f m
