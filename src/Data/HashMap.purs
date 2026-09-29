@@ -2,54 +2,45 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-module Data.HashMap (
-  HashMap,
-
-  empty,
-  singleton,
-
-  lookup,
-  insert,
-  delete,
-
-  size,
-
-  isEmpty,
-  member,
-  upsert,
-  insertWith,
-  update,
-  alter,
-
-  filter,
-  filterWithKey,
-  filterKeys,
-  mapMaybe,
-  mapMaybeWithKey,
-
-  fromArray,
-  fromFoldable,
-  fromArrayBy,
-  fromFoldableBy,
-  fromFoldableWithIndex,
-  toArrayBy,
-  keys,
-  values,
-
-  union,
-  unionWith,
-  intersection,
-  intersectionWith,
-  difference,
-
-  SemigroupHashMap(..),
-
-  nubHash,
-
-  debugShow,
-
-  any
-  ) where
+module Data.HashMap
+  ( HashMap
+  , SemigroupHashMap(..)
+  , alter
+  , any
+  , anyKey
+  , debugShow
+  , delete
+  , difference
+  , empty
+  , filter
+  , filterKeys
+  , filterWithKey
+  , fromArray
+  , fromArrayBy
+  , fromFoldable
+  , fromFoldableBy
+  , fromFoldableWithIndex
+  , insert
+  , insertWith
+  , intersection
+  , intersectionWith
+  , isEmpty
+  , keys
+  , lookup
+  , mapMaybe
+  , mapMaybeWithKey
+  , member
+  , nubHash
+  , singleton
+  , size
+  , toArrayBy
+  , union
+  , unionWith
+  , update
+  , upsert
+  , values
+  )
+  where
 
 import Prelude
 
@@ -411,9 +402,14 @@ nubHash = runFn4 nubHashPurs Nothing Just (==) hash
 foreign import nubHashPurs :: forall a. Fn4 (forall x. Maybe x) (forall x. x -> Maybe x) (a -> a -> Boolean) (a -> Int) (Array a -> Array a)
 
 foreign import anyPurs :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
+foreign import anyKeyPurs :: forall k v. (k -> Boolean) -> HashMap k v -> Boolean
 
 -- | Returns true if at least one HashMap element satisfies the given predicate, iterating the HashMap only as necessary and stopping as soon as the predicate yields true.
 -- |
 -- | Use this function instead of `Foldable.any` for more performance.
 any :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
 any = anyPurs
+
+-- | Returns true if at least one HashMap key satisfies the given predicate, iterating the HashMap only as necessary and stopping as soon as the predicate yields true.
+anyKey :: forall k v. (k -> Boolean) -> HashMap k v -> Boolean
+anyKey = anyKeyPurs
