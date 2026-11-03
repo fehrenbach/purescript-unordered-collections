@@ -8,3 +8,4 @@
 /.psa*
 test-bundle.js
 .spago
+/spago.lock
