@@ -30,7 +30,9 @@ module Data.HashSet (
   fromMap,
   toArray,
   toMap,
-  toUnfoldable
+  toUnfoldable,
+
+  any
   ) where
 
 import Prelude hiding (map)
@@ -40,7 +42,7 @@ import Data.Foldable (class Foldable, foldr, fold)
 import Data.FoldableWithIndex (foldMapWithIndex, foldlWithIndex, foldrWithIndex)
 import Data.HashMap as M
 import Data.Hashable (class Hashable)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), isJust)
 import Data.Unfoldable (class Unfoldable)
 
 -- | A `HashSet a` is a set with elements of type `a`.
@@ -175,3 +177,10 @@ toMap (HashSet m) = m
 
 fromMap :: forall a. M.HashMap a Unit -> HashSet a
 fromMap = HashSet
+
+-- | Search for an element matching the given predicate.
+-- |
+-- | Like `Folable.any`, but can short-circuit. It is still O(n), however.
+-- | If you are looking for a concrete element, use `member` instead.
+any :: forall a. (a -> Boolean) -> HashSet a -> Boolean
+any p (HashSet m) = isJust (M.findWithKey (\k _ -> p k) m)

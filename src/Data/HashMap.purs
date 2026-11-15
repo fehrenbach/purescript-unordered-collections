@@ -48,7 +48,8 @@ module Data.HashMap (
 
   debugShow,
 
-  any
+  any,
+  findWithKey
   ) where
 
 import Prelude
@@ -410,10 +411,19 @@ nubHash = runFn4 nubHashPurs Nothing Just (==) hash
 
 foreign import nubHashPurs :: forall a. Fn4 (forall x. Maybe x) (forall x. x -> Maybe x) (a -> a -> Boolean) (a -> Int) (Array a -> Array a)
 
-foreign import anyPurs :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
+foreign import findWithKeyPurs :: forall k v. Maybe (Tuple k v) -> (k -> v -> Maybe (Tuple k v)) -> (k -> v -> Boolean) -> HashMap k v -> Maybe (Tuple k v)
+
+-- | Search for a key value pair that satisfies the predicate.
+-- |
+-- | Returns immediately when a matching pair is found. There are no
+-- | guarantees about which pair is returned if multiple pairs match.
+-- | This is not an efficient operation. If you know the key, use `lookup` instead.
+-- | This can, but might not, be faster than `filterWithKey` if you only care about one match.
+findWithKey :: forall k v. (k -> v -> Boolean) -> HashMap k v -> Maybe (Tuple k v)
+findWithKey = findWithKeyPurs Nothing (\k v -> Just (Tuple k v))
 
 -- | Returns true if at least one HashMap element satisfies the given predicate, iterating the HashMap only as necessary and stopping as soon as the predicate yields true.
 -- |
 -- | Use this function instead of `Foldable.any` for more performance.
 any :: forall k v. (v -> Boolean) -> HashMap k v -> Boolean
-any = anyPurs
+any p = isJust <<< findWithKey (\_ -> p)
