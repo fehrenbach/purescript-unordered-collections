@@ -450,12 +450,31 @@ main = do
                     && HM.any (\x -> x == snd l) hm
                     && (not (HM.any (\_ -> false) hm))
 
-  log "any agrees with Foldable any"
+  log "anyKey"
+  quickCheck' 10000 $ \(a :: Array (Tuple Int Int)) ->
+    let hm = HM.fromFoldable a
+        xs = HM.toArrayBy Tuple hm
+    in  (not (HM.anyKey (\_ -> true) HM.empty)) &&
+        case A.head xs of
+          Nothing -> true
+          Just h  -> case A.last xs of
+            Nothing -> true
+            Just l  -> HM.anyKey (\x -> x == fst h) hm
+                    && HM.anyKey (\x -> x == fst l) hm
+                    && (not (HM.anyKey (\_ -> false) hm))
+
+  log "HashMap any agrees with Foldable any"
   quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (f :: Int -> Boolean) ->
     let m = HM.fromArray a
         f' (Tuple _ v) = f v
     -- use array instance, so we still test something useful if any ever becomes a method on Foldable
     in  any f' a === HM.any f m
+
+  log "HashSet any agrees with Foldable any"
+  quickCheck' 10000 $ \(a :: Array Int) (f :: Int -> Boolean) ->
+    let m = HS.fromArray a
+    -- use array instance, so we still test something useful if any ever becomes a method on Foldable
+    in  any f a === HS.any f m
 
   log "Done."
 

@@ -497,6 +497,24 @@ MapNode.prototype.any = function (predicate) {
   return false;
 };
 
+MapNode.prototype.anyKey = function (predicate) {
+  for (var i = 0; i < popCount(this.datamap) * 2; i = i + 2) {
+    var k = this.content[i];
+
+    if (predicate(k)) {
+        return true;
+    }
+  }
+
+  for (; i < this.content.length; i++) {
+    if (this.content[i].anyKey(predicate)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 /** @constructor */
 function Collision(keys, values) {
     this.keys = keys;
@@ -702,6 +720,15 @@ Collision.prototype.filterWithKey = function collisionFilterWithKey(f) {
 Collision.prototype.any = function (predicate) {
   for (var i = 0; i < this.keys.length; i++) {
     if (predicate(this.values[i])) {
+      return true;
+    }
+  }
+  return false;
+};
+
+Collision.prototype.anyKey = function (predicate) {
+  for (var i = 0; i < this.keys.length; i++) {
+    if (predicate(this.keys[i])) {
       return true;
     }
   }
@@ -950,5 +977,11 @@ export function nubHashPurs(Nothing, Just, eq, hash) {
 export function anyPurs(pred) {
   return function (m) {
       return m.any(pred);
+  };
+};
+
+export function anyKeyPurs(pred) {
+  return function (m) {
+      return m.anyKey(pred);
   };
 };
