@@ -477,25 +477,20 @@ MapNode.prototype.itraverse = function (pure, apply, f) {
     return m;
 }
 
-MapNode.prototype.any = function (predicate) {
-  for (var i = 1; i < popCount(this.datamap) * 2; i = i + 2) {
-    var v = this.content[i];
-
-    if (predicate(v)) {
-        return true;
+MapNode.prototype.findWithKey = function (Nothing, JustPair, predicate) {
+    for (var i = 0; i < popCount(this.datamap) * 2;) {
+        var k = this.content[i++];
+        var v = this.content[i++];
+        if (predicate(k)(v)) {
+            return JustPair(k)(v);
+        }
     }
-  }
-
-  i--;
-
-  for (; i < this.content.length; i++) {
-    if (this.content[i].any(predicate)) {
-      return true;
+    for (; i < this.content.length; i++) {
+      var r = this.content[i].findWithKey(Nothing, JustPair, predicate);
+      if (r !== Nothing) return r;
     }
-  }
-
-  return false;
-};
+    return Nothing;
+}
 
 /** @constructor */
 function Collision(keys, values) {
@@ -699,14 +694,14 @@ Collision.prototype.filterWithKey = function collisionFilterWithKey(f) {
     return new Collision(keys, values);
 }
 
-Collision.prototype.any = function (predicate) {
-  for (var i = 0; i < this.keys.length; i++) {
-    if (predicate(this.values[i])) {
-      return true;
+Collision.prototype.findWithKey = function (Nothing, JustPair, predicate) {
+    for (var i = 0; i < this.keys.length; i++) {
+        if (predicate(this.keys[i])(this.values[i])) {
+            return JustPair(this.keys[i])(this.values[i]);
+        }
     }
-  }
-  return false;
-};
+    return Nothing;
+}
 
 function mask(keyHash, shift) {
     return 1 << ((keyHash >>> shift) & 31);
@@ -947,8 +942,12 @@ export function nubHashPurs(Nothing, Just, eq, hash) {
     };
 };
 
-export function anyPurs(pred) {
-  return function (m) {
-      return m.any(pred);
-  };
-};
+export function findWithKeyPurs(Nothing) {
+    return function(JustPair) {
+        return function (pred) {
+            return function (m) {
+                return m.findWithKey(Nothing, JustPair, pred);
+            };
+        };
+    };
+}

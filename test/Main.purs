@@ -437,7 +437,7 @@ main = do
       Just false -> HM.lookup k mc === HM.lookup k my
       Nothing -> false === HM.member k my
 
-  log "any"
+  log "HM.any"
   quickCheck' 10000 $ \(a :: Array (Tuple Int Int)) ->
     let hm = HM.fromFoldable a
         xs = HM.toArrayBy Tuple hm
@@ -450,12 +450,18 @@ main = do
                     && HM.any (\x -> x == snd l) hm
                     && (not (HM.any (\_ -> false) hm))
 
-  log "any agrees with Foldable any"
+  log "HM.any agrees with Foldable any"
   quickCheck' 10000 $ \(a :: Array (Tuple CollidingInt Int)) (f :: Int -> Boolean) ->
     let m = HM.fromArray a
         f' (Tuple _ v) = f v
     -- use array instance, so we still test something useful if any ever becomes a method on Foldable
     in  any f' a === HM.any f m
+
+  log "HashSet any agrees with Foldable any"
+  quickCheck' 10000 $ \(a :: Array Int) (f :: Int -> Boolean) ->
+    let m = HS.fromArray a
+    -- use array instance, so we still test something useful if any ever becomes a method on Foldable
+    in  any f a === HS.any f m
 
   log "Done."
 
