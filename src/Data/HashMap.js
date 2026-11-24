@@ -306,7 +306,14 @@ MapNode.prototype.unionWith = function (eq, hash, f, that, shift) {
     return new MapNode(datamap, nodemap, data.concat(nodes.reverse()));
 }
 
-MapNode.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that, shift) {
+// Sentinel and identity for internal lookups that want the raw value
+// instead of a Maybe. Passing these as lookup's Nothing and Just keeps
+// the FFI independent of how the compiler represents constructors, and
+// avoids allocating a Just per hit.
+var notFound = {};
+function identity(x) { return x; }
+
+MapNode.prototype.intersectionWith = function (eq, hash, f, that, shift) {
     if (this.constructor !== that.constructor)
         throw "Trying to intersect a MapNode with something else";
 
@@ -332,7 +339,7 @@ MapNode.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that,
             thisNodeIndex = index(this.nodemap, bit);
             thatNodeIndex = index(that.nodemap, bit);
             var recRes = this.content[this.content.length - thisNodeIndex - 1]
-                .intersectionWith(Nothing, Just, eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
+                .intersectionWith(eq, hash, f, that.content[that.content.length - thatNodeIndex - 1], shift + 5);
             if (isEmpty(recRes)) continue;
             if (recRes.isSingleton()) {
                 datamap |= bit;
@@ -348,10 +355,10 @@ MapNode.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that,
             var k = this.content[thisDataIndex * 2];
             var v = this.content[thisDataIndex * 2 + 1];
             var hk = hash(k);
-            var res = that.content[that.content.length - thatNodeIndex - 1].lookup(Nothing, Just, eq, k, hk, shift + 5);
-            if (res !== Nothing) {
+            var res = that.content[that.content.length - thatNodeIndex - 1].lookup(notFound, identity, eq, k, hk, shift + 5);
+            if (res !== notFound) {
                 datamap |= bit;
-                data.push(k, f(v)(res.value0));
+                data.push(k, f(v)(res));
             }
             break;
         case 9 /* NODE_DATA */:
@@ -360,10 +367,10 @@ MapNode.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that,
             var k = that.content[thatDataIndex * 2];
             var v = that.content[thatDataIndex * 2 + 1];
             var hk = hash(k);
-            var res = this.content[this.content.length - thisNodeIndex - 1].lookup(Nothing, Just, eq, k, hk, shift + 5);
-            if (res !== Nothing) {
+            var res = this.content[this.content.length - thisNodeIndex - 1].lookup(notFound, identity, eq, k, hk, shift + 5);
+            if (res !== notFound) {
                 datamap |= bit;
-                data.push(k, f(res.value0)(v));
+                data.push(k, f(res)(v));
             }
             break;
         case 10 /* DATA_DATA */:
@@ -648,7 +655,7 @@ Collision.prototype.unionWith = function (eq, hash, f, that, shift) {
     return new Collision(keys, values);
 }
 
-Collision.prototype.intersectionWith = function (Nothing, Just, eq, hash, f, that, shift) {
+Collision.prototype.intersectionWith = function (eq, hash, f, that, shift) {
     if (that.constructor !== Collision)
         throw "Trying to intersect a Collision with something else";
     var keys = [];
@@ -846,10 +853,10 @@ export function unionWithPurs(eq, hash, f) {
     };
 };
 
-export function intersectionWithPurs(Nothing, Just, eq, hash, f) {
+export function intersectionWithPurs(eq, hash, f) {
     return function (l) {
         return function (r) {
-            return l.intersectionWith(Nothing, Just, eq, hash, f, r, 0);
+            return l.intersectionWith(eq, hash, f, r, 0);
         };
     };
 };

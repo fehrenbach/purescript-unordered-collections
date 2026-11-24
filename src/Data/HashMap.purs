@@ -350,13 +350,13 @@ unionWith f = runFn3 unionWithPurs eq hash f
 intersection :: forall k v. Hashable k => HashMap k v -> HashMap k v -> HashMap k v
 intersection = intersectionWith (\_ x -> x)
 
-foreign import intersectionWithPurs :: forall k a b c. Fn5 (forall x.Maybe x) (forall x.x -> Maybe x) (k -> k -> Boolean) (k -> Int) (a -> b -> c) (HashMap k a -> HashMap k b -> HashMap k c)
+foreign import intersectionWithPurs :: forall k a b c. Fn3 (k -> k -> Boolean) (k -> Int) (a -> b -> c) (HashMap k a -> HashMap k b -> HashMap k c)
 
 -- | Intersect two maps, combining the values for keys that appear in both maps using the given function.
 -- |
 -- | `intersectionWith (-) (singleton 0 3) (singleton 0 2) == singleton 0 1`
 intersectionWith :: forall k a b c. Hashable k => (a -> b -> c) -> HashMap k a -> HashMap k b -> HashMap k c
-intersectionWith f = runFn5 intersectionWithPurs Nothing Just eq hash f
+intersectionWith f = runFn3 intersectionWithPurs eq hash f
 
 -- | Compute the difference of two maps, that is a new map of all the
 -- | mappings in the left map that do not have a corresponding key in
