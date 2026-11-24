@@ -25,6 +25,7 @@ import Data.Set as OS
 import Data.Traversable (sequence, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (Tuple(..), fst, snd)
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Class.Console (log)
 import Effect.Exception (throw)
@@ -241,6 +242,12 @@ main = do
   quickCheck' 10000 $ \(a :: Array (Tuple Boolean Int)) (b :: Array (Tuple Boolean Int)) (f :: Int -> Int -> Int) ->
     Array.sort (HM.toArrayBy Tuple (HM.intersectionWith f (HM.fromFoldable a) (HM.fromFoldable b))) ===
     Array.sort (OM.toUnfoldable (OM.intersectionWith f (OM.fromFoldable a) (OM.fromFoldable b)))
+
+  log "intersectionWith looks up a key in a subtree (data/node)"
+  nowGood (HM.intersectionWith (-) (HM.singleton 0 10) keysSharingFirstHashChunk) (HM.singleton 0 7)
+
+  log "intersectionWith looks up a key in a subtree (node/data)"
+  nowGood (HM.intersectionWith (-) keysSharingFirstHashChunk (HM.singleton 0 10)) (HM.singleton 0 (-7))
 
   log "map-apply is equivalent to intersectionWith"
   quickCheck $ \(a :: Array (Tuple CollidingInt Int)) (b :: Array (Tuple CollidingInt Int)) (f :: Int -> Int -> Int) ->
@@ -485,6 +492,9 @@ t249 = let k = 855538
            a = [(Tuple 359452 false),(Tuple 903388 false)]
            m = arbitraryHM a in
        HM.delete k (HM.insert k v m) == m
+
+keysSharingFirstHashChunk :: HashMap Int Int
+keysSharingFirstHashChunk = HM.fromArray [0 /\ 3, 32 /\ 1, 64 /\ 2]
 
 gh28 :: Boolean
 gh28 = (HM.singleton 'x' 10 # HM.upsert (_ + 1) 'x' 1) == HM.singleton 'x' 11
